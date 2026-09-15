@@ -1,23 +1,31 @@
-//! Recurrent sequence models (LSTM / GRU) and the `AutoSequence` high-level API
-//! (PRD §8, §20).
+//! Transformer encoder sequence classifier and the `AutoTransformer` API
+//! (PRD §9, §20).
 //!
-//! Sequence classification/regression needs a recurrent (or attention) model
-//! over variable content; this module provides an LSTM/GRU classifier whose
-//! cell type, width and regularization are searchable hyperparameters, and an
-//! `AutoSequence` builder that searches them over fixed-length multivariate
-//! sequences. The last recurrent hidden state feeds a linear classification
-//! head.
+//! Searches a Transformer encoder over sequences: the number of attention
+//! heads, per-head width, depth, and feed-forward ratio. The plan calls out the
+//! `d_model % heads == 0` compatibility constraint (§5); rather than reject
+//! invalid combinations after sampling, this parameterizes the model by
+//! `heads` and `head_dim` and sets `d_model = heads * head_dim`, so every
+//! sampled configuration is valid by construction.
+//!
+//! Input features are linearly embedded to `d_model`, given sinusoidal
+//! positional encodings, passed through the encoder, mean-pooled over time, and
+//! classified with a linear head.
 
+use crate::sequence::{label_tensor, seq_tensor};
+use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
 use automl_core::objective::ReportSink;
 use automl_core::param::ParamSet;
 use automl_core::prelude::{Distribution, MedianPruner, SearchSpace, Study, TpeSampler};
 
-use crate::TrainBackend;
 use burn::module::AutodiffModule;
 use burn::nn::loss::CrossEntropyLoss;
-use burn::nn::{Dropout, DropoutConfig, GruConfig, Linear, LinearConfig, Lstm, LstmConfig};
+use burn::nn::transformer::{
+    TransformerEncoder, TransformerEncoderConfig, TransformerEncoderInput,
+};
+use burn::nn::{Dropout, DropoutConfig, Linear, LinearConfig};
 use burn::optim::{AdamConfig, GradientsParams, Optimizer};
 use burn::prelude::*;
 use burn::tensor::backend::AutodiffBackend;
@@ -26,82 +34,92 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use std::sync::Arc;
 
-/// A recurrent sequence classifier: an LSTM *or* GRU encoder followed by a
-/// linear head over the final hidden state. Exactly one cell is populated,
-/// selected by [`RnnConfig::cell`].
+/// A Transformer-encoder sequence classifier.
 #[derive(Module, Debug)]
-pub struct RnnClassifier<B: Backend> {
-    lstm: Option<Lstm<B>>,
-    gru: Option<burn::nn::Gru<B>>,
+pub struct TransformerClassifier<B: Backend> {
+    embed: Linear<B>,
+    encoder: TransformerEncoder<B>,
     dropout: Dropout,
     head: Linear<B>,
 }
 
-/// Configuration for [`RnnClassifier`].
+/// Configuration for [`TransformerClassifier`]. `d_model` is `n_heads *
+/// head_dim`, keeping it divisible by the head count by construction (§5).
 #[derive(Config, Debug)]
-pub struct RnnConfig {
+pub struct TransformerConfig {
     /// Number of input features per timestep.
     pub input_dim: usize,
     /// Number of output classes.
     pub num_classes: usize,
-    /// Recurrent hidden-state width.
-    #[config(default = 32)]
-    pub hidden_size: usize,
-    /// Cell type: `"lstm"` or `"gru"`.
-    #[config(default = "String::from(\"lstm\")")]
-    pub cell: String,
-    /// Dropout applied to the final hidden state.
+    /// Number of attention heads.
+    #[config(default = 2)]
+    pub n_heads: usize,
+    /// Per-head width; `d_model = n_heads * head_dim`.
+    #[config(default = 16)]
+    pub head_dim: usize,
+    /// Number of encoder layers.
+    #[config(default = 2)]
+    pub n_layers: usize,
+    /// Feed-forward width as a multiple of `d_model`.
+    #[config(default = 2)]
+    pub ff_ratio: usize,
+    /// Dropout rate.
     #[config(default = 0.1)]
     pub dropout: f64,
 }
 
-impl RnnConfig {
+impl TransformerConfig {
+    /// The model dimension, `n_heads * head_dim`.
+    pub fn d_model(&self) -> usize {
+        self.n_heads * self.head_dim
+    }
+
     /// Initialize the model on `device`.
-    pub fn init<B: Backend>(&self, device: &B::Device) -> RnnClassifier<B> {
-        let (lstm, gru) = if self.cell == "gru" {
-            (
-                None,
-                Some(GruConfig::new(self.input_dim, self.hidden_size, true).init(device)),
-            )
-        } else {
-            (
-                Some(LstmConfig::new(self.input_dim, self.hidden_size, true).init(device)),
-                None,
-            )
-        };
-        RnnClassifier {
-            lstm,
-            gru,
+    pub fn init<B: Backend>(&self, device: &B::Device) -> TransformerClassifier<B> {
+        let d_model = self.d_model();
+        let d_ff = d_model * self.ff_ratio;
+        TransformerClassifier {
+            embed: LinearConfig::new(self.input_dim, d_model).init(device),
+            encoder: TransformerEncoderConfig::new(d_model, d_ff, self.n_heads, self.n_layers)
+                .with_dropout(self.dropout)
+                .init(device),
             dropout: DropoutConfig::new(self.dropout).init(),
-            head: LinearConfig::new(self.hidden_size, self.num_classes).init(device),
+            head: LinearConfig::new(d_model, self.num_classes).init(device),
         }
     }
 }
 
-impl<B: Backend> RnnClassifier<B> {
+impl<B: Backend> TransformerClassifier<B> {
     /// Forward pass: `[batch, seq_len, features]` to `[batch, num_classes]`.
     pub fn forward(&self, input: Tensor<B, 3>) -> Tensor<B, 2> {
-        let last_hidden = if let Some(lstm) = &self.lstm {
-            // LstmState.hidden is the final hidden state `[batch, hidden]`.
-            let (_outputs, state) = lstm.forward(input, None);
-            state.hidden
-        } else if let Some(gru) = &self.gru {
-            // GRU returns `[batch, seq, hidden]`; take the last timestep.
-            let outputs = gru.forward(input, None);
-            let [b, s, h] = outputs.dims();
-            outputs.narrow(1, s - 1, 1).reshape([b, h])
-        } else {
-            unreachable!("RnnClassifier always has exactly one cell")
-        };
-        self.head.forward(self.dropout.forward(last_hidden))
+        let x = self.embed.forward(input); // [b, s, d_model]
+        let [b, s, d] = x.dims();
+        let pos = sinusoidal::<B>(s, d, &x.device()).unsqueeze::<3>(); // [1, s, d]
+        let x = x + pos;
+        let encoded = self.encoder.forward(TransformerEncoderInput::new(x)); // [b, s, d]
+        let pooled = encoded.mean_dim(1).reshape([b, d]); // mean over time
+        self.head.forward(self.dropout.forward(pooled))
     }
 }
 
-/// One-call hyperparameter search for sequence classification (PRD §20).
-///
-/// Sequences are fixed-length multivariate: `sequences[i]` is
-/// `[seq_len][features]` and `labels[i]` its class.
-pub struct AutoSequence {
+/// Sinusoidal positional encoding `[seq_len, d_model]`.
+fn sinusoidal<B: Backend>(seq: usize, d: usize, device: &B::Device) -> Tensor<B, 2> {
+    let mut data = vec![0f32; seq * d];
+    for (pos, row) in data.chunks_mut(d).enumerate() {
+        for (i, cell) in row.iter_mut().enumerate() {
+            let angle = pos as f32 / 10000f32.powf((2 * (i / 2)) as f32 / d as f32);
+            *cell = if i % 2 == 0 { angle.sin() } else { angle.cos() };
+        }
+    }
+    Tensor::<B, 2>::from_data(
+        TensorData::new(data, [seq, d]).convert::<B::FloatElem>(),
+        device,
+    )
+}
+
+/// One-call Transformer architecture/training search for sequence
+/// classification (PRD §9, §20).
+pub struct AutoTransformer {
     sequences: Vec<Vec<Vec<f32>>>,
     labels: Vec<i64>,
     num_classes: usize,
@@ -112,16 +130,16 @@ pub struct AutoSequence {
     seed: u64,
 }
 
-impl AutoSequence {
-    /// A new sequence-classification search over the given data.
+impl AutoTransformer {
+    /// A new Transformer search over the given fixed-length sequences.
     pub fn new(sequences: Vec<Vec<Vec<f32>>>, labels: Vec<i64>) -> Self {
-        AutoSequence {
+        AutoTransformer {
             sequences,
             labels,
             num_classes: 0,
             epochs: 8,
             batch_size: 32,
-            trials: 12,
+            trials: 10,
             val_fraction: 0.2,
             seed: 0,
         }
@@ -170,14 +188,18 @@ impl AutoSequence {
             self.num_classes
         };
 
+        // heads and head_dim are searched independently; d_model = heads*head_dim
+        // is divisible by heads by construction (§5 compatibility constraint).
         let space = SearchSpace::new()
-            .add("cell", Distribution::categorical(["lstm", "gru"]))
-            .add("hidden_size", Distribution::int(8, 64))
-            .add("lr", Distribution::log_float(1e-3, 1e-1))
+            .add("n_heads", Distribution::categorical(["1", "2", "4"]))
+            .add("head_dim", Distribution::int(8, 32))
+            .add("n_layers", Distribution::int(1, 3))
+            .add("ff_ratio", Distribution::int(2, 4))
+            .add("lr", Distribution::log_float(1e-4, 1e-2))
             .add("dropout", Distribution::float(0.0, 0.3));
 
         let mut study = Study::builder(space)
-            .name("auto-sequence")
+            .name("auto-transformer")
             .maximize("accuracy")
             .sampler(TpeSampler::new("accuracy", Direction::Maximize, self.seed))
             .pruner(MedianPruner::new("accuracy", Direction::Maximize).with_warmup_steps(1))
@@ -191,9 +213,11 @@ impl AutoSequence {
         let objective = move |p: &ParamSet,
                               sink: &mut dyn ReportSink|
               -> CoreResult<NamedMetrics> {
-            let cfg = RnnConfig::new(feat_dim, num_classes)
-                .with_hidden_size(p.int("hidden_size")? as usize)
-                .with_cell(p.categorical("cell")?.to_string())
+            let cfg = TransformerConfig::new(feat_dim, num_classes)
+                .with_n_heads(p.categorical("n_heads")?.parse().unwrap_or(2))
+                .with_head_dim(p.int("head_dim")? as usize)
+                .with_n_layers(p.int("n_layers")? as usize)
+                .with_ff_ratio(p.int("ff_ratio")? as usize)
                 .with_dropout(p.float("dropout")?);
             let acc =
                 train_and_eval::<TrainBackend>(&cfg, p.float("lr")?, epochs, batch, &data, sink);
@@ -216,7 +240,7 @@ fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
 }
 
 fn train_and_eval<B: AutodiffBackend>(
-    cfg: &RnnConfig,
+    cfg: &TransformerConfig,
     lr: f64,
     epochs: usize,
     batch_size: usize,
@@ -252,7 +276,7 @@ fn train_and_eval<B: AutodiffBackend>(
 }
 
 fn accuracy<B: Backend>(
-    model: &RnnClassifier<B>,
+    model: &TransformerClassifier<B>,
     seqs: &[Vec<Vec<f32>>],
     labels: &[i64],
     val_idx: &[usize],
@@ -272,81 +296,57 @@ fn accuracy<B: Backend>(
     correct as f32 / val_idx.len() as f32 * 100.0
 }
 
-pub(crate) fn seq_tensor<B: Backend>(
-    seqs: &[Vec<Vec<f32>>],
-    idx: &[usize],
-    device: &B::Device,
-) -> Tensor<B, 3> {
-    let n = idx.len();
-    let s = seqs[idx[0]].len();
-    let f = seqs[idx[0]].first().map_or(0, |v| v.len());
-    let flat: Vec<f32> = idx
-        .iter()
-        .flat_map(|&i| seqs[i].iter().flat_map(|step| step.iter().copied()))
-        .collect();
-    Tensor::<B, 3>::from_data(
-        TensorData::new(flat, [n, s, f]).convert::<B::FloatElem>(),
-        device,
-    )
-}
-
-pub(crate) fn label_tensor<B: Backend>(
-    labels: &[i64],
-    idx: &[usize],
-    device: &B::Device,
-) -> Tensor<B, 1, Int> {
-    let vals: Vec<i64> = idx.iter().map(|&i| labels[i]).collect();
-    Tensor::<B, 1, Int>::from_data(
-        TensorData::new(vals, [idx.len()]).convert::<B::IntElem>(),
-        device,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Two classes over length-12 univariate sequences: class 0 rises, class 1
-    /// falls. A recurrent model separates them easily.
+    #[test]
+    fn d_model_is_divisible_by_heads_by_construction() {
+        let cfg = TransformerConfig::new(4, 2)
+            .with_n_heads(4)
+            .with_head_dim(16);
+        assert_eq!(cfg.d_model(), 64);
+        assert_eq!(cfg.d_model() % cfg.n_heads, 0);
+    }
+
+    /// Two classes over length-12 univariate sequences distinguished by where a
+    /// spike occurs (early vs late) — an order-dependent task positional
+    /// encoding + attention can solve.
     fn synthetic(n: usize, seed: u64) -> (Vec<Vec<Vec<f32>>>, Vec<i64>) {
         use rand::Rng;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         let mut seqs = Vec::new();
         let mut labels = Vec::new();
         for i in 0..n {
-            let rising = i % 2 == 0;
+            let early = i % 2 == 0;
+            let spike = if early { 2 } else { 9 };
             let seq: Vec<Vec<f32>> = (0..12)
                 .map(|t| {
-                    let base = if rising { t as f32 } else { 12.0 - t as f32 };
-                    vec![base + rng.gen_range(-0.5..0.5)]
+                    vec![if t == spike {
+                        5.0
+                    } else {
+                        rng.gen_range(-0.3..0.3)
+                    }]
                 })
                 .collect();
             seqs.push(seq);
-            labels.push(if rising { 0 } else { 1 });
+            labels.push(if early { 0 } else { 1 });
         }
         (seqs, labels)
     }
 
     #[test]
-    fn auto_sequence_classifies_rising_vs_falling() {
-        let (seqs, labels) = synthetic(200, 1);
-        let study = AutoSequence::new(seqs, labels)
+    fn auto_transformer_classifies_positional_task() {
+        let (seqs, labels) = synthetic(200, 2);
+        let study = AutoTransformer::new(seqs, labels)
             .num_classes(2)
             .epochs(6)
             .trials(2)
-            .seed(1)
+            .seed(2)
             .fit()
             .unwrap();
         let best = study.best_trial().unwrap().unwrap();
         let acc = best.final_value("accuracy").unwrap();
-        assert!(
-            acc > 80.0,
-            "best sequence accuracy was {acc}, expected the RNN to learn"
-        );
-    }
-
-    #[test]
-    fn empty_data_errors() {
-        assert!(AutoSequence::new(Vec::new(), Vec::new()).fit().is_err());
+        assert!(acc > 75.0, "best transformer accuracy was {acc}");
     }
 }
