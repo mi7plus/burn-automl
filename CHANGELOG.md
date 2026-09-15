@@ -109,6 +109,18 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Time series & sequences (v0.3)
+
+- Time-series forecasting (`automl-burn::timeseries`, §8/§20): time-aware
+  backtesting (`TimeSplit::Expanding`/`Sliding`) that always validates *after*
+  training and asserts loudly on temporal leakage; forecasting metrics (MAE,
+  RMSE, sMAPE, MASE, pinball); and `AutoForecaster`, a one-call search over
+  lookback window + MLP hyperparameters evaluated by backtest.
+- Recurrent sequence models (`automl-burn::sequence`, §8/§20): an LSTM/GRU
+  `RnnClassifier` whose cell type/width/dropout are searchable, and
+  `AutoSequence`, a one-call sequence-classification search over fixed-length
+  multivariate sequences.
+
 ### Added — Burn integration
 
 - `automl-burn` crate: the Burn deep-learning execution adapter. A configurable

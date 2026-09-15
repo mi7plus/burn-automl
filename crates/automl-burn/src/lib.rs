@@ -22,9 +22,11 @@
 #![warn(missing_docs)]
 
 pub mod evaluation;
+pub mod sequence;
 pub mod tabular;
 pub mod timeseries;
 pub use evaluation::Evaluation;
+pub use sequence::AutoSequence;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
 pub use timeseries::{AutoForecaster, TimeSplit};
 
