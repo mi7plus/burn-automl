@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/automl-core",
+    "crates/automl-tasks",
     "crates/automl-burn",
     "crates/automl-cli",
 ]
