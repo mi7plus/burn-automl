@@ -1,0 +1,15 @@
+[package]
+name = "automl-burn"
+description = "Burn deep-learning execution adapter for burn-automl: train Burn models as automl-core objectives with intermediate reporting and pruning."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+automl-core = { path = "../automl-core" }
+burn.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
