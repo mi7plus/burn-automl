@@ -46,6 +46,12 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   behind the `sqlite` feature (extraction trigger #1, §21.1).
 - `Study::resume`: reconnect to a persisted study id and continue optimizing
   without losing completed trials (§26 recovery gate).
+- Provenance & timing (§19): every `TrialRecord` now carries an `EnvSnapshot`
+  (OS/arch/core version) and `TrialTiming` (queued/started/completed millis,
+  with `wall_time_ms`). Storage stamps start/complete times; the SQLite backend
+  gains a v2 migration (nullable `env`/`queued_at`/`started_at`/`completed_at`
+  columns) that upgrades a v1 database in place. The dashboard shows per-trial
+  wall time. Old persisted records read back with default env and empty timing.
 - `Budget` trait with `TrialBudget`, `WallTimeBudget`, `EpochBudget`,
   `Unbounded` built-ins.
 - `Objective` / `TaskAdapter` / `ReportSink` seam between the engine and

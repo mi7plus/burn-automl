@@ -62,6 +62,7 @@ pub mod metrics;
 pub mod objective;
 pub mod param;
 pub mod pareto;
+pub mod provenance;
 pub mod pruner;
 pub mod sampler;
 pub mod space;
@@ -90,6 +91,7 @@ pub mod prelude {
     pub use crate::objective::{Objective, ReportSink, TaskAdapter};
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
+    pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
     pub use crate::sampler::{GridSampler, RandomSampler, Sampler};
     pub use crate::space::{Condition, SearchSpace};
