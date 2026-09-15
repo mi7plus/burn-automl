@@ -85,6 +85,11 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   train with per-epoch reporting + median pruning, and return the best config
   plus the `Study` for inspection. They share one MLP training core (§6).
   `Mlp::forward_flat` generalizes the model to flat feature vectors.
+- Cross-validation (§6): an `Evaluation` scheme — `Holdout`, `KFold`, and
+  `StratifiedKFold` — chosen via `.evaluation(..)` on the `Auto*` builders. The
+  objective runs each fold and reports one aggregated metric (a per-fold
+  running mean under K-fold), so the sampler and pruner stay oblivious to the
+  scheme. Holdout keeps the per-epoch learning curve.
 
 ### Added — Burn integration
 
