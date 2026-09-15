@@ -109,6 +109,21 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Transformers & unsupervised (v0.4)
+
+- Transformer sequence classifier (`automl-burn::transformer`, §9/§20):
+  `AutoTransformer` searches heads, per-head width, depth, FFN ratio, lr and
+  dropout over a Burn `TransformerEncoder` (embedding + sinusoidal positions +
+  mean-pool + head). The `d_model % heads == 0` compatibility constraint (§5)
+  holds by construction (`d_model = heads * head_dim`).
+- `automl-tasks` crate (§30): framework-agnostic classical task adapters that
+  need no deep-learning backend.
+  - Clustering (§7/§20): K-means (k-means++) with silhouette scoring, and
+    `AutoCluster`, which grid-searches the number of clusters to maximize
+    silhouette.
+  - Anomaly detection (§7/§20): a k-NN distance scorer and `AutoAnomaly`, which
+    jointly searches the neighbour count and threshold to maximize F1.
+
 ### Added — Time series & sequences (v0.3)
 
 - Time-series forecasting (`automl-burn::timeseries`, §8/§20): time-aware

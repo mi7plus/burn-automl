@@ -192,6 +192,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "automl-tasks"
+version = "0.1.0"
+dependencies = [
+ "automl-core",
+ "rand 0.8.8",
+ "rand_chacha 0.3.1",
+]
+
+[[package]]
 name = "av-scenechange"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

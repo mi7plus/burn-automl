@@ -58,6 +58,7 @@ run and trains on the CPU.
 |-------|------|
 | `automl-core` | Framework-agnostic engine: distributions, search spaces, samplers, pruners, storage, budgets, executors, studies. No `burn` or `automl-*` dependencies. |
 | `automl-burn` | Burn deep-learning execution adapter: train Burn models as `automl-core` objectives with per-epoch reporting and pruning; high-level `AutoClassifier`/`AutoRegressor` (tabular), `AutoForecaster` (time series, with time-aware backtesting), and `AutoSequence` (LSTM/GRU). CPU (`ndarray`) backend by default. |
+| `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette) and `AutoAnomaly` (k-NN). |
 | `automl-cli` | The `automl` binary: inspect studies (`automl list`) and render a read-only HTML dashboard (`automl dashboard`) from a SQLite store. |
 
 Additional crates (`automl-tasks`, `automl-vision`, …) are introduced

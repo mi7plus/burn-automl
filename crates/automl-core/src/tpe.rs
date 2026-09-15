@@ -534,4 +534,58 @@ mod tests {
             }
         }
     }
+
+    /// Conditional-space TPE hardening (§5.1, §24.1): a mixed conditional
+    /// optimization where the *branch itself* and its within-branch parameter
+    /// must both be found. Branch "a" bottoms out at loss 5, branch "b" reaches
+    /// loss 0 at y = -3. TPE must learn to prefer branch "b" (steered by the
+    /// categorical density ratio) and locate its optimum (per-branch KDE), while
+    /// under-observed branches fall back to the prior rather than erroring.
+    #[test]
+    fn tpe_optimizes_a_conditional_space_end_to_end() {
+        use crate::study::Study;
+
+        let space = SearchSpace::new()
+            .add("model", Distribution::categorical(["a", "b"]))
+            .add_conditional(
+                "x",
+                Distribution::float(-5.0, 5.0),
+                Condition::when_eq("model", "a"),
+            )
+            .add_conditional(
+                "y",
+                Distribution::float(-5.0, 5.0),
+                Condition::when_eq("model", "b"),
+            );
+
+        let objective = |p: &ParamSet, _s: &mut dyn crate::objective::ReportSink| {
+            let loss = match p.categorical("model")? {
+                "a" => 5.0 + (p.float("x")? - 2.0).powi(2), // best 5.0
+                "b" => (p.float("y")? + 3.0).powi(2),       // best 0.0 at y=-3
+                _ => unreachable!(),
+            };
+            Ok(NamedMetrics::single("loss", loss))
+        };
+
+        let mut study = Study::builder(space)
+            .minimize("loss")
+            .sampler(TpeSampler::new("loss", Direction::Minimize, 11))
+            .seed(11)
+            .build()
+            .unwrap();
+        study.optimize_n(&objective, 120).unwrap();
+
+        let best = study.best_trial().unwrap().unwrap();
+        // TPE should discover branch "b" is superior and hone in on y ≈ -3.
+        assert_eq!(
+            best.params.categorical("model").unwrap(),
+            "b",
+            "should prefer branch b"
+        );
+        assert!(
+            best.final_value("loss").unwrap() < 0.5,
+            "best loss {:?} — did not find the conditional optimum",
+            best.final_value("loss")
+        );
+    }
 }

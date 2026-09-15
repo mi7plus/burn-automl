@@ -1,0 +1,14 @@
+[package]
+name = "automl-tasks"
+description = "Framework-agnostic task adapters for burn-automl (classical, no deep-learning dependency): clustering and anomaly detection."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+automl-core = { path = "../automl-core" }
+rand.workspace = true
+rand_chacha.workspace = true
