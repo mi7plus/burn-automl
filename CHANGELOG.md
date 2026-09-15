@@ -53,7 +53,9 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   columns) that upgrades a v1 database in place. The dashboard shows per-trial
   wall time. Old persisted records read back with default env and empty timing.
 - `Budget` trait with `TrialBudget`, `WallTimeBudget`, `EpochBudget`,
-  `Unbounded` built-ins.
+  `StepBudget`, `Unbounded` built-ins. The study loop now tallies epochs and
+  steps consumed (a trial's last reported step, and its report count) into
+  `Consumption`, so `EpochBudget`/`StepBudget` actually fire end-to-end.
 - `Objective` / `TaskAdapter` / `ReportSink` seam between the engine and
   concrete workloads.
 - `Executor` trait with `SequentialExecutor` (deterministic, default) and

@@ -165,9 +165,14 @@ impl Study {
 
             self.executor.run_all(jobs);
 
-            // Observe completed trials in deterministic (enqueue) order.
+            // Observe completed trials in deterministic (enqueue) order, and
+            // tally the training resources they consumed so epoch/step budgets
+            // (§4) actually fire. A trial's last reported step is its epoch/step
+            // count; the number of reports is its intermediate-step count.
             for trial_id in &batch_ids {
                 if let Ok(record) = self.storage.load_trial(*trial_id) {
+                    consumption.epochs += record.intermediate.last().map(|r| r.step).unwrap_or(0);
+                    consumption.steps += record.intermediate.len() as u64;
                     self.sampler.on_trial_complete(&record);
                 }
             }
@@ -456,6 +461,30 @@ mod tests {
         let x = best.params.float("x").unwrap();
         // With 200 random samples the best x should be near 2.
         assert!((x - 2.0).abs() < 0.5, "best x = {x}");
+    }
+
+    #[test]
+    fn epoch_budget_stops_after_total_epochs() {
+        use crate::budget::EpochBudget;
+        // Each trial reports 5 epochs, so consumption grows by 5 per trial.
+        let curve_obj = |_p: &ParamSet, sink: &mut dyn ReportSink| -> Result<NamedMetrics> {
+            for step in 1..=5u64 {
+                sink.report(step, NamedMetrics::single("loss", 0.1))?;
+            }
+            Ok(NamedMetrics::single("loss", 0.1))
+        };
+        let mut study = Study::builder(space())
+            .minimize("loss")
+            .sampler(RandomSampler::new(1))
+            .seed(1)
+            .build()
+            .unwrap();
+        // Budget of 12 epochs: trial1 -> 5, trial2 -> 10, trial3 -> 15 (>=12 stops
+        // the loop before trial4). Sequential executor checks the budget per trial.
+        let n = study
+            .optimize(&curve_obj, &EpochBudget { max_epochs: 12 })
+            .unwrap();
+        assert_eq!(n, 3, "expected to stop after 3 trials (15 epochs) got {n}");
     }
 
     #[test]
