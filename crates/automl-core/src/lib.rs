@@ -63,6 +63,7 @@ pub mod objective;
 pub mod param;
 pub mod pareto;
 pub mod pruner;
+pub mod qmc;
 pub mod sampler;
 pub mod space;
 pub mod storage;
@@ -91,6 +92,7 @@ pub mod prelude {
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
+    pub use crate::qmc::QmcSampler;
     pub use crate::sampler::{GridSampler, RandomSampler, Sampler};
     pub use crate::space::{Condition, SearchSpace};
     #[cfg(feature = "sqlite")]

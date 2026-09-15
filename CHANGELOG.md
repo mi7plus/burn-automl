@@ -31,6 +31,10 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   uniform crossover, Gaussian mutation) — the evolutionary/CMA-style method the
   v1.0 DoD requires (§28). Handles conditional spaces, and is the strongest
   sampler on the benchmark suite (best mean on 4 of 5 functions).
+- `QmcSampler`: a quasi-Monte-Carlo (Halton) sampler giving deterministic
+  low-discrepancy coverage — evener space filling than random on
+  low-dimensional continuous problems. Pure function of the trial index (no
+  RNG), and conditional-space aware like the other samplers.
 - `Pruner` trait with `NoPruner`, `MedianPruner`, `AshaPruner`
   (Asynchronous Successive Halving: geometric rungs, top-`1/eta` promotion), and
   `MultiObjectivePruner` (drops a trial dominated by a majority of peers, §17).
