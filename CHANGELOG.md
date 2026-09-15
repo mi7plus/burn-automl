@@ -31,6 +31,10 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   uniform crossover, Gaussian mutation) — the evolutionary/CMA-style method the
   v1.0 DoD requires (§28). Handles conditional spaces, and is the strongest
   sampler on the benchmark suite (best mean on 4 of 5 functions).
+- `QmcSampler`: a quasi-Monte-Carlo (Halton) sampler giving deterministic
+  low-discrepancy coverage — evener space filling than random on
+  low-dimensional continuous problems. Pure function of the trial index (no
+  RNG), and conditional-space aware like the other samplers.
 - `Pruner` trait with `NoPruner`, `MedianPruner`, `AshaPruner`
   (Asynchronous Successive Halving: geometric rungs, top-`1/eta` promotion), and
   `MultiObjectivePruner` (drops a trial dominated by a majority of peers, §17).
@@ -46,10 +50,24 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   behind the `sqlite` feature (extraction trigger #1, §21.1).
 - `Study::resume`: reconnect to a persisted study id and continue optimizing
   without losing completed trials (§26 recovery gate).
+- Provenance & timing (§19): every `TrialRecord` now carries an `EnvSnapshot`
+  (OS/arch/core version) and `TrialTiming` (queued/started/completed millis,
+  with `wall_time_ms`). Storage stamps start/complete times; the SQLite backend
+  gains a v2 migration (nullable `env`/`queued_at`/`started_at`/`completed_at`
+  columns) that upgrades a v1 database in place. The dashboard shows per-trial
+  wall time. Old persisted records read back with default env and empty timing.
 - `Budget` trait with `TrialBudget`, `WallTimeBudget`, `EpochBudget`,
-  `Unbounded` built-ins.
+  `StepBudget`, `Unbounded` built-ins. The study loop now tallies epochs and
+  steps consumed (a trial's last reported step, and its report count) into
+  `Consumption`, so `EpochBudget`/`StepBudget` actually fire end-to-end.
 - `Objective` / `TaskAdapter` / `ReportSink` seam between the engine and
   concrete workloads.
+- `DeviceScheduler` and memory-aware admission control (§18.3): reserves
+  per-device capacity via RAII `DeviceLease`s, distinguishes an impossible
+  configuration (`AdmissionError::Impossible`) from transient contention
+  (`NoCapacityAvailable`), and models shared (MPS-style) devices through
+  fractional GPU/CPU requests. Pure `ResourceSpec` accounting, ready to wire
+  into the distributed executor.
 - `Executor` trait with `SequentialExecutor` (deterministic, default) and
   `ThreadExecutor` (scoped thread pool) tiers, plus `ResourceSpec`. The study
   loop is now batch-oriented: it enqueues each proposal as a running trial
@@ -85,6 +103,11 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   train with per-epoch reporting + median pruning, and return the best config
   plus the `Study` for inspection. They share one MLP training core (§6).
   `Mlp::forward_flat` generalizes the model to flat feature vectors.
+- Cross-validation (§6): an `Evaluation` scheme — `Holdout`, `KFold`, and
+  `StratifiedKFold` — chosen via `.evaluation(..)` on the `Auto*` builders. The
+  objective runs each fold and reports one aggregated metric (a per-fold
+  running mean under K-fold), so the sampler and pruner stay oblivious to the
+  scheme. Holdout keeps the per-epoch learning curve.
 
 ### Added — Burn integration
 

@@ -62,8 +62,11 @@ pub mod metrics;
 pub mod objective;
 pub mod param;
 pub mod pareto;
+pub mod provenance;
 pub mod pruner;
+pub mod qmc;
 pub mod sampler;
+pub mod scheduler;
 pub mod space;
 pub mod storage;
 pub mod study;
@@ -79,7 +82,7 @@ pub use error::{Error, Result};
 /// The common imports for using the engine.
 pub mod prelude {
     pub use crate::budget::{
-        Budget, Consumption, EpochBudget, TrialBudget, Unbounded, WallTimeBudget,
+        Budget, Consumption, EpochBudget, StepBudget, TrialBudget, Unbounded, WallTimeBudget,
     };
     pub use crate::distribution::Distribution;
     pub use crate::error::{Error, Result};
@@ -90,8 +93,11 @@ pub mod prelude {
     pub use crate::objective::{Objective, ReportSink, TaskAdapter};
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
+    pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
+    pub use crate::qmc::QmcSampler;
     pub use crate::sampler::{GridSampler, RandomSampler, Sampler};
+    pub use crate::scheduler::{AdmissionError, Device, DeviceLease, DeviceScheduler};
     pub use crate::space::{Condition, SearchSpace};
     #[cfg(feature = "sqlite")]
     pub use crate::sqlite::SqliteStorage;

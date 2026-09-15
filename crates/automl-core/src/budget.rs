@@ -124,6 +124,29 @@ impl Budget for EpochBudget {
     }
 }
 
+/// Stop after a total number of optimizer/environment steps across all trials.
+#[derive(Debug, Clone, Copy)]
+pub struct StepBudget {
+    /// Maximum total steps.
+    pub max_steps: u64,
+}
+
+impl Budget for StepBudget {
+    fn is_exhausted(&self, consumed: &Consumption) -> bool {
+        consumed.steps >= self.max_steps
+    }
+    fn remaining(&self, consumed: &Consumption) -> BudgetRemaining {
+        if self.max_steps == 0 {
+            return BudgetRemaining::Fraction(0.0);
+        }
+        let used = consumed.steps.min(self.max_steps) as f64 / self.max_steps as f64;
+        BudgetRemaining::Fraction((1.0 - used).max(0.0))
+    }
+    fn describe(&self) -> String {
+        format!("{} steps", self.max_steps)
+    }
+}
+
 /// A budget that never exhausts. Useful for interactive exploration where the
 /// caller stops the study manually.
 #[derive(Debug, Clone, Copy, Default)]
@@ -155,6 +178,10 @@ impl dyn Budget {
     /// An [`EpochBudget`].
     pub fn epochs(max_epochs: u64) -> EpochBudget {
         EpochBudget { max_epochs }
+    }
+    /// A [`StepBudget`].
+    pub fn steps(max_steps: u64) -> StepBudget {
+        StepBudget { max_steps }
     }
 }
 
@@ -189,6 +216,32 @@ mod tests {
         };
         assert!(!b.is_exhausted(&c));
         assert_eq!(b.remaining(&c), BudgetRemaining::Fraction(0.5));
+    }
+
+    #[test]
+    fn step_budget_exhausts() {
+        let b = StepBudget { max_steps: 10 };
+        assert!(!b.is_exhausted(&Consumption {
+            steps: 9,
+            ..Default::default()
+        }));
+        assert!(b.is_exhausted(&Consumption {
+            steps: 10,
+            ..Default::default()
+        }));
+    }
+
+    #[test]
+    fn epoch_budget_tracks_epochs() {
+        let b = EpochBudget { max_epochs: 8 };
+        assert!(!b.is_exhausted(&Consumption {
+            epochs: 5,
+            ..Default::default()
+        }));
+        assert!(b.is_exhausted(&Consumption {
+            epochs: 8,
+            ..Default::default()
+        }));
     }
 
     #[test]

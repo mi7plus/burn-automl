@@ -21,7 +21,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod evaluation;
 pub mod tabular;
+pub use evaluation::Evaluation;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
 
 use automl_core::error::Result as CoreResult;
