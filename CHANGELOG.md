@@ -58,6 +58,12 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   `Consumption`, so `EpochBudget`/`StepBudget` actually fire end-to-end.
 - `Objective` / `TaskAdapter` / `ReportSink` seam between the engine and
   concrete workloads.
+- `DeviceScheduler` and memory-aware admission control (§18.3): reserves
+  per-device capacity via RAII `DeviceLease`s, distinguishes an impossible
+  configuration (`AdmissionError::Impossible`) from transient contention
+  (`NoCapacityAvailable`), and models shared (MPS-style) devices through
+  fractional GPU/CPU requests. Pure `ResourceSpec` accounting, ready to wire
+  into the distributed executor.
 - `Executor` trait with `SequentialExecutor` (deterministic, default) and
   `ThreadExecutor` (scoped thread pool) tiers, plus `ResourceSpec`. The study
   loop is now batch-oriented: it enqueues each proposal as a running trial
