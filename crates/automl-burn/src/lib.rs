@@ -23,8 +23,10 @@
 
 pub mod evaluation;
 pub mod tabular;
+pub mod timeseries;
 pub use evaluation::Evaluation;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
+pub use timeseries::{AutoForecaster, TimeSplit};
 
 use automl_core::error::Result as CoreResult;
 use automl_core::metrics::NamedMetrics;
