@@ -52,6 +52,15 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (trial_id, step)
     );
     "#,
+    // v2: per-trial provenance and timing (§19). Added as nullable columns so a
+    // v1 database upgrades in place; older rows read back with default env and
+    // empty timing.
+    r#"
+    ALTER TABLE trials ADD COLUMN env          TEXT;    -- JSON EnvSnapshot
+    ALTER TABLE trials ADD COLUMN queued_at    INTEGER; -- unix millis
+    ALTER TABLE trials ADD COLUMN started_at   INTEGER; -- unix millis or NULL
+    ALTER TABLE trials ADD COLUMN completed_at INTEGER; -- unix millis or NULL
+    "#,
 ];
 
 /// A persistent [`Storage`] backend over a SQLite database file.
@@ -142,17 +151,28 @@ impl SqliteStorage {
 
     /// Read one trial record plus its intermediate reports from an open lock.
     fn read_trial(conn: &Connection, trial: TrialId) -> Result<TrialRecord> {
-        let (study_id, params_json, state_json, final_json, seed): (
+        #[allow(clippy::type_complexity)]
+        let (study_id, params_json, state_json, final_json, seed, env_json, queued, started, completed): (
             i64,
             String,
             String,
             Option<String>,
             i64,
+            Option<String>,
+            Option<i64>,
+            Option<i64>,
+            Option<i64>,
         ) = conn
             .query_row(
-                "SELECT study_id, params, state, final_metrics, seed FROM trials WHERE id = ?1",
+                "SELECT study_id, params, state, final_metrics, seed, env, queued_at, started_at, completed_at \
+                 FROM trials WHERE id = ?1",
                 params![trial.0 as i64],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+                |r| {
+                    Ok((
+                        r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?,
+                        r.get(7)?, r.get(8)?,
+                    ))
+                },
             )
             .optional()
             .map_err(sql)?
@@ -165,6 +185,16 @@ impl SqliteStorage {
         let state: TrialState = serde_json::from_str(&state_json)?;
         let final_metrics: Option<NamedMetrics> =
             final_json.map(|s| serde_json::from_str(&s)).transpose()?;
+        // Provenance columns are absent (NULL) on rows written under v1.
+        let env: crate::provenance::EnvSnapshot = match env_json {
+            Some(s) => serde_json::from_str(&s)?,
+            None => crate::provenance::EnvSnapshot::default(),
+        };
+        let timing = crate::provenance::TrialTiming {
+            queued_at_ms: queued.unwrap_or(0) as u64,
+            started_at_ms: started.map(|v| v as u64),
+            completed_at_ms: completed.map(|v| v as u64),
+        };
 
         let mut stmt = conn
             .prepare("SELECT step, metrics FROM reports WHERE trial_id = ?1 ORDER BY step")
@@ -192,6 +222,8 @@ impl SqliteStorage {
             intermediate,
             final_metrics,
             seed: seed as u64,
+            env,
+            timing,
         })
     }
 }
@@ -220,10 +252,19 @@ impl Storage for SqliteStorage {
         let conn = self.conn.lock().unwrap();
         let params_json = serde_json::to_string(&params)?;
         let state_json = serde_json::to_string(&TrialState::Waiting)?;
+        let env_json = serde_json::to_string(&crate::provenance::EnvSnapshot::capture())?;
+        let queued = crate::provenance::now_ms() as i64;
         conn.execute(
-            "INSERT INTO trials (study_id, params, state, final_metrics, seed)
-             VALUES (?1, ?2, ?3, NULL, ?4)",
-            params![study.0 as i64, params_json, state_json, seed as i64],
+            "INSERT INTO trials (study_id, params, state, final_metrics, seed, env, queued_at)
+             VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6)",
+            params![
+                study.0 as i64,
+                params_json,
+                state_json,
+                seed as i64,
+                env_json,
+                queued
+            ],
         )
         .map_err(|e| match e {
             rusqlite::Error::SqliteFailure(_, _) => Error::NotFound {
@@ -236,7 +277,24 @@ impl Storage for SqliteStorage {
     }
 
     fn start_trial(&self, trial: TrialId) -> Result<()> {
-        self.set_state(trial, TrialState::Running, None)
+        let conn = self.conn.lock().unwrap();
+        let affected = conn
+            .execute(
+                "UPDATE trials SET state = ?1, started_at = ?2 WHERE id = ?3",
+                params![
+                    serde_json::to_string(&TrialState::Running)?,
+                    crate::provenance::now_ms() as i64,
+                    trial.0 as i64
+                ],
+            )
+            .map_err(sql)?;
+        if affected == 0 {
+            return Err(Error::NotFound {
+                kind: "trial",
+                id: trial.to_string(),
+            });
+        }
+        Ok(())
     }
 
     fn report(&self, trial: TrialId, step: u64, metrics: NamedMetrics) -> Result<()> {
@@ -257,7 +315,29 @@ impl Storage for SqliteStorage {
         state: TrialState,
         final_metrics: Option<NamedMetrics>,
     ) -> Result<()> {
-        self.set_state(trial, state, Some(final_metrics))
+        let conn = self.conn.lock().unwrap();
+        let state_json = serde_json::to_string(&state)?;
+        let metrics_json = final_metrics
+            .map(|m| serde_json::to_string(&m))
+            .transpose()?;
+        let affected = conn
+            .execute(
+                "UPDATE trials SET state = ?1, final_metrics = ?2, completed_at = ?3 WHERE id = ?4",
+                params![
+                    state_json,
+                    metrics_json,
+                    crate::provenance::now_ms() as i64,
+                    trial.0 as i64
+                ],
+            )
+            .map_err(sql)?;
+        if affected == 0 {
+            return Err(Error::NotFound {
+                kind: "trial",
+                id: trial.to_string(),
+            });
+        }
+        Ok(())
     }
 
     fn load_trial(&self, trial: TrialId) -> Result<TrialRecord> {
@@ -320,43 +400,6 @@ impl Storage for SqliteStorage {
             sampler_name,
             pruner_name,
         })
-    }
-}
-
-impl SqliteStorage {
-    /// Shared UPDATE for state transitions; `final_metrics = Some(v)` also
-    /// writes the (possibly NULL) final metrics column.
-    fn set_state(
-        &self,
-        trial: TrialId,
-        state: TrialState,
-        final_metrics: Option<Option<NamedMetrics>>,
-    ) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let state_json = serde_json::to_string(&state)?;
-        let affected = match final_metrics {
-            Some(metrics) => {
-                let metrics_json = metrics.map(|m| serde_json::to_string(&m)).transpose()?;
-                conn.execute(
-                    "UPDATE trials SET state = ?1, final_metrics = ?2 WHERE id = ?3",
-                    params![state_json, metrics_json, trial.0 as i64],
-                )
-                .map_err(sql)?
-            }
-            None => conn
-                .execute(
-                    "UPDATE trials SET state = ?1 WHERE id = ?2",
-                    params![state_json, trial.0 as i64],
-                )
-                .map_err(sql)?,
-        };
-        if affected == 0 {
-            return Err(Error::NotFound {
-                kind: "trial",
-                id: trial.to_string(),
-            });
-        }
-        Ok(())
     }
 }
 
@@ -464,6 +507,30 @@ mod tests {
             s.load_history(StudyId(123)),
             Err(Error::NotFound { kind: "study", .. })
         ));
+    }
+
+    #[test]
+    fn provenance_and_timing_roundtrip() {
+        let s = SqliteStorage::open_in_memory().unwrap();
+        // The v2 provenance migration is applied.
+        assert_eq!(s.schema_version().unwrap(), MIGRATIONS.len() as i64);
+
+        let study = s.create_study(meta()).unwrap();
+        let t = s.enqueue_trial(study, ParamSet::new(), 1).unwrap();
+        s.start_trial(t).unwrap();
+        s.complete(
+            t,
+            TrialState::Complete,
+            Some(NamedMetrics::single("loss", 0.1)),
+        )
+        .unwrap();
+
+        let rec = s.load_trial(t).unwrap();
+        assert!(!rec.env.os.is_empty());
+        assert!(!rec.env.core_version.is_empty());
+        assert!(rec.timing.queued_at_ms > 0);
+        assert!(rec.timing.started_at_ms.is_some());
+        assert!(rec.timing.completed_at_ms.is_some());
     }
 
     #[test]

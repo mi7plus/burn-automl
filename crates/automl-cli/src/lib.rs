@@ -31,6 +31,7 @@ pub fn render_dashboard(meta: &StudyMeta, records: &[TrialRecord]) -> String {
             json!({
                 "id": r.id.0,
                 "state": state_str(r.state),
+                "wall_ms": r.wall_time_ms(),
                 "params": params,
                 "metrics": metrics,
             })
@@ -216,11 +217,12 @@ const CONFIG = /*__DATA__*/null;
   sel.addEventListener("change", scatter); scatter();
 
   // ---- trials table ----
-  const cols=["id","state",...objs.map(o=>o.name),...paramNames];
+  const cols=["id","state","wall (ms)",...objs.map(o=>o.name),...paramNames];
   let html="<table><thead><tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr></thead><tbody>";
   for(const t of trials){
     html+="<tr>";
     html+=`<td>${t.id}</td><td class="state-${t.state}">${t.state}</td>`;
+    html+=`<td>${t.wall_ms==null?"":t.wall_ms}</td>`;
     for(const o of objs){ const v=t.metrics[o.name]; html+=`<td>${v==null?"":fmt(v)}</td>`; }
     for(const p of paramNames){ const v=t.params[p]; html+=`<td>${v==null?"":(typeof v==="number"?fmt(v):v)}</td>`; }
     html+="</tr>";

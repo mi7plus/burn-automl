@@ -84,10 +84,18 @@ pub struct TrialRecord {
     pub final_metrics: Option<NamedMetrics>,
     /// The seed used to make this trial reproducible.
     pub seed: u64,
+    /// Environment snapshot for reproducibility (§19). Defaults to the current
+    /// environment (also filled in when loading older records that lack it).
+    #[serde(default)]
+    pub env: crate::provenance::EnvSnapshot,
+    /// Lifecycle timing (§19).
+    #[serde(default)]
+    pub timing: crate::provenance::TrialTiming,
 }
 
 impl TrialRecord {
-    /// Create a fresh waiting trial record.
+    /// Create a fresh waiting trial record, capturing the environment and
+    /// marking it queued now.
     pub fn new(id: TrialId, study_id: StudyId, params: ParamSet, seed: u64) -> Self {
         TrialRecord {
             id,
@@ -97,7 +105,14 @@ impl TrialRecord {
             intermediate: Vec::new(),
             final_metrics: None,
             seed,
+            env: crate::provenance::EnvSnapshot::capture(),
+            timing: crate::provenance::TrialTiming::queued_now(),
         }
+    }
+
+    /// Wall-clock run time in milliseconds, if the trial has started and ended.
+    pub fn wall_time_ms(&self) -> Option<u64> {
+        self.timing.wall_time_ms()
     }
 
     /// The most recent intermediate metrics, if any.

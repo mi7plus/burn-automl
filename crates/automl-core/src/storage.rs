@@ -155,6 +155,7 @@ impl Storage for InMemoryStorage {
                 id: trial.to_string(),
             })?;
         rec.state = TrialState::Running;
+        rec.timing.started_at_ms = Some(crate::provenance::now_ms());
         Ok(())
     }
 
@@ -194,6 +195,7 @@ impl Storage for InMemoryStorage {
             })?;
         rec.state = state;
         rec.final_metrics = final_metrics;
+        rec.timing.completed_at_ms = Some(crate::provenance::now_ms());
         Ok(())
     }
 
@@ -288,5 +290,25 @@ mod tests {
             s.enqueue_trial(StudyId(99), ParamSet::new(), 1),
             Err(Error::NotFound { kind: "study", .. })
         ));
+    }
+
+    #[test]
+    fn provenance_and_timing_are_stamped() {
+        let s = InMemoryStorage::new();
+        let study = s.create_study(meta()).unwrap();
+        let t = s.enqueue_trial(study, ParamSet::new(), 1).unwrap();
+
+        let queued = s.load_trial(t).unwrap();
+        assert!(queued.timing.queued_at_ms > 0);
+        assert!(queued.timing.started_at_ms.is_none());
+        assert!(!queued.env.os.is_empty());
+
+        s.start_trial(t).unwrap();
+        s.complete(t, TrialState::Complete, None).unwrap();
+        let done = s.load_trial(t).unwrap();
+        assert!(done.timing.started_at_ms.is_some());
+        assert!(done.timing.completed_at_ms.is_some());
+        // wall time is defined once both ends are present.
+        assert!(done.wall_time_ms().is_some());
     }
 }
