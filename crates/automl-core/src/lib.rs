@@ -64,6 +64,7 @@ pub mod param;
 pub mod pareto;
 pub mod pruner;
 pub mod sampler;
+pub mod scheduler;
 pub mod space;
 pub mod storage;
 pub mod study;
@@ -92,6 +93,7 @@ pub mod prelude {
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
     pub use crate::sampler::{GridSampler, RandomSampler, Sampler};
+    pub use crate::scheduler::{AdmissionError, Device, DeviceLease, DeviceScheduler};
     pub use crate::space::{Condition, SearchSpace};
     #[cfg(feature = "sqlite")]
     pub use crate::sqlite::SqliteStorage;
