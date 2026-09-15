@@ -1,0 +1,17 @@
+[package]
+name = "automl-cli"
+description = "Command-line tools for burn-automl: inspect studies and render a read-only dashboard from a SQLite store."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "automl"
+path = "src/main.rs"
+
+[dependencies]
+automl-core = { path = "../automl-core", features = ["sqlite"] }
+serde_json.workspace = true
