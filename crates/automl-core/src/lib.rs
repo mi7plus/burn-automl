@@ -79,7 +79,7 @@ pub use error::{Error, Result};
 /// The common imports for using the engine.
 pub mod prelude {
     pub use crate::budget::{
-        Budget, Consumption, EpochBudget, TrialBudget, Unbounded, WallTimeBudget,
+        Budget, Consumption, EpochBudget, StepBudget, TrialBudget, Unbounded, WallTimeBudget,
     };
     pub use crate::distribution::Distribution;
     pub use crate::error::{Error, Result};

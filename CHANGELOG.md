@@ -47,7 +47,9 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 - `Study::resume`: reconnect to a persisted study id and continue optimizing
   without losing completed trials (§26 recovery gate).
 - `Budget` trait with `TrialBudget`, `WallTimeBudget`, `EpochBudget`,
-  `Unbounded` built-ins.
+  `StepBudget`, `Unbounded` built-ins. The study loop now tallies epochs and
+  steps consumed (a trial's last reported step, and its report count) into
+  `Consumption`, so `EpochBudget`/`StepBudget` actually fire end-to-end.
 - `Objective` / `TaskAdapter` / `ReportSink` seam between the engine and
   concrete workloads.
 - `Executor` trait with `SequentialExecutor` (deterministic, default) and
