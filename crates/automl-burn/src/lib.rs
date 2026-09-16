@@ -22,15 +22,19 @@
 #![warn(missing_docs)]
 
 pub mod evaluation;
+pub mod segmentation;
 pub mod sequence;
 pub mod tabular;
 pub mod timeseries;
 pub mod transformer;
+pub mod vision;
 pub use evaluation::Evaluation;
+pub use segmentation::AutoSegmentation;
 pub use sequence::AutoSequence;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
 pub use timeseries::{AutoForecaster, TimeSplit};
 pub use transformer::AutoTransformer;
+pub use vision::AutoVision;
 
 use automl_core::error::Result as CoreResult;
 use automl_core::metrics::NamedMetrics;
