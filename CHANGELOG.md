@@ -114,6 +114,10 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 - Single-object detection (`automl-burn::detection`, §10/§20): a `Detector` CNN
   that regresses a normalized bounding box, a `box_iou` metric, and
   `AutoDetection`, a one-call localization search scored by mean box IoU.
+- Speech/audio classification (`automl-burn::audio`, §12/§20): a `spectrogram`
+  front-end (windowed Hann DFT) and `AutoAudio`, which turns waveforms into
+  spectrogram sequences and classifies them with the recurrent `AutoSequence`
+  model.
 
 - Distributed lease protocol (§18.2, §23): the `Storage` trait gains
   `claim_trial` (compare-and-swap: claim a `Waiting` trial, or a `Running` one
