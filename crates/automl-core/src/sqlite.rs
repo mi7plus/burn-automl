@@ -71,6 +71,12 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (trial_id, name)
     );
     "#,
+    // v4: distributed lease columns (§18.2). The lease owner and expiry back the
+    // claim/renew/orphan-recovery compare-and-swaps.
+    r#"
+    ALTER TABLE trials ADD COLUMN lease_owner  TEXT;    -- worker id or NULL
+    ALTER TABLE trials ADD COLUMN lease_expiry INTEGER; -- unix millis or NULL
+    "#,
 ];
 
 /// A persistent [`Storage`] backend over a SQLite database file.
@@ -445,6 +451,69 @@ impl Storage for SqliteStorage {
             .collect::<Result<Vec<_>>>()?;
         Ok(names)
     }
+
+    fn claim_trial(
+        &self,
+        study: StudyId,
+        owner: &str,
+        now_ms: u64,
+        lease_expiry_ms: u64,
+    ) -> Result<Option<TrialId>> {
+        let conn = self.conn.lock().unwrap();
+        let waiting = serde_json::to_string(&TrialState::Waiting)?;
+        let running = serde_json::to_string(&TrialState::Running)?;
+        // The mutex serializes access, so SELECT-then-UPDATE is an atomic CAS:
+        // a Waiting trial, or a Running one whose lease has expired (orphan).
+        let candidate: Option<i64> = conn
+            .query_row(
+                "SELECT id FROM trials \
+                 WHERE study_id = ?1 AND (state = ?2 \
+                    OR (state = ?3 AND (lease_expiry IS NULL OR lease_expiry <= ?4))) \
+                 ORDER BY id LIMIT 1",
+                params![study.0 as i64, waiting, running, now_ms as i64],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(sql)?;
+        match candidate {
+            Some(id) => {
+                conn.execute(
+                    "UPDATE trials SET state = ?1, lease_owner = ?2, lease_expiry = ?3, \
+                     started_at = COALESCE(started_at, ?4) WHERE id = ?5",
+                    params![running, owner, lease_expiry_ms as i64, now_ms as i64, id],
+                )
+                .map_err(sql)?;
+                Ok(Some(TrialId(id as u64)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn renew_lease(&self, trial: TrialId, owner: &str, new_expiry_ms: u64) -> Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn
+            .execute(
+                "UPDATE trials SET lease_expiry = ?1 WHERE id = ?2 AND lease_owner = ?3",
+                params![new_expiry_ms as i64, trial.0 as i64, owner],
+            )
+            .map_err(sql)?;
+        Ok(affected > 0)
+    }
+
+    fn recover_orphans(&self, study: StudyId, now_ms: u64) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let waiting = serde_json::to_string(&TrialState::Waiting)?;
+        let running = serde_json::to_string(&TrialState::Running)?;
+        let affected = conn
+            .execute(
+                "UPDATE trials SET state = ?1, lease_owner = NULL \
+                 WHERE study_id = ?2 AND state = ?3 \
+                   AND lease_expiry IS NOT NULL AND lease_expiry <= ?4",
+                params![waiting, study.0 as i64, running, now_ms as i64],
+            )
+            .map_err(sql)?;
+        Ok(affected)
+    }
 }
 
 /// Map a rusqlite error into our storage error.
@@ -573,6 +642,28 @@ mod tests {
         );
         assert_eq!(s.list_artifacts(trial).unwrap(), vec!["ckpt".to_string()]);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn lease_claim_renew_and_orphan_recovery() {
+        let s = SqliteStorage::open_in_memory().unwrap();
+        assert_eq!(s.schema_version().unwrap(), MIGRATIONS.len() as i64);
+        let study = s.create_study(meta()).unwrap();
+        let t = s.enqueue_trial(study, ParamSet::new(), 1).unwrap();
+
+        // Worker "a" claims the waiting trial (lease to t=100).
+        assert_eq!(s.claim_trial(study, "a", 0, 100).unwrap(), Some(t));
+        // Nothing else claimable while the lease holds.
+        assert_eq!(s.claim_trial(study, "b", 50, 150).unwrap(), None);
+        // "a" can renew, a stranger cannot.
+        assert!(s.renew_lease(t, "a", 200).unwrap());
+        assert!(!s.renew_lease(t, "b", 200).unwrap());
+
+        // Once the (renewed) lease expires, the orphan is reclaimable.
+        assert_eq!(s.claim_trial(study, "b", 250, 350).unwrap(), Some(t));
+        // And an explicit sweep would requeue an expired one.
+        assert_eq!(s.recover_orphans(study, 400).unwrap(), 1);
+        assert_eq!(s.load_trial(t).unwrap().state, TrialState::Waiting);
     }
 
     #[test]

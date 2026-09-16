@@ -105,6 +105,45 @@ pub trait Storage: Send + Sync {
         let _ = trial;
         Ok(Vec::new())
     }
+
+    // ---- distributed lease protocol (§18.2) -------------------------------
+
+    /// Atomically claim a queued trial for a worker — the compare-and-swap at
+    /// the heart of the distributed protocol (§18.2). A trial is claimable if it
+    /// is `Waiting`, or if it is `Running` with a lease that expired at or
+    /// before `now_ms` (an orphan whose worker died). The claimed trial is set
+    /// `Running`, owned by `owner` with a lease expiring at `lease_expiry_ms`,
+    /// and its id is returned; `None` means nothing is available. No trial is
+    /// ever handed to two workers without an expired lease.
+    ///
+    /// Backends without lease support return `None` from the default.
+    fn claim_trial(
+        &self,
+        study: StudyId,
+        owner: &str,
+        now_ms: u64,
+        lease_expiry_ms: u64,
+    ) -> Result<Option<TrialId>> {
+        let _ = (study, owner, now_ms, lease_expiry_ms);
+        Ok(None)
+    }
+
+    /// Renew a worker's lease on a trial, extending it to `new_expiry_ms`.
+    /// Returns `true` if `owner` still holds the lease, `false` if it was lost
+    /// (reclaimed by another worker or the trial completed) — the signal a
+    /// worker uses to avoid a double-completion (exactly-once semantics, §18.2).
+    fn renew_lease(&self, trial: TrialId, owner: &str, new_expiry_ms: u64) -> Result<bool> {
+        let _ = (trial, owner, new_expiry_ms);
+        Ok(false)
+    }
+
+    /// Return orphaned trials — `Running` with a lease expired at or before
+    /// `now_ms` — to the `Waiting` queue, retaining their intermediate metrics
+    /// for the pruner (§18.2 orphan recovery). Returns how many were recovered.
+    fn recover_orphans(&self, study: StudyId, now_ms: u64) -> Result<usize> {
+        let _ = (study, now_ms);
+        Ok(0)
+    }
 }
 
 /// Internal per-study bookkeeping for the in-memory backend.
@@ -121,6 +160,8 @@ struct Inner {
     studies: BTreeMap<StudyId, StudyEntry>,
     trials: BTreeMap<TrialId, TrialRecord>,
     artifacts: BTreeMap<(TrialId, String), Vec<u8>>,
+    /// Per-trial lease: `(owner, expiry_ms)` for the distributed protocol.
+    leases: BTreeMap<TrialId, (String, u64)>,
 }
 
 /// A thread-safe, non-persistent [`Storage`] backend.
@@ -283,6 +324,80 @@ impl Storage for InMemoryStorage {
             .filter(|(t, _)| *t == trial)
             .map(|(_, name)| name.clone())
             .collect())
+    }
+
+    fn claim_trial(
+        &self,
+        study: StudyId,
+        owner: &str,
+        now_ms: u64,
+        lease_expiry_ms: u64,
+    ) -> Result<Option<TrialId>> {
+        let mut inner = self.inner.lock().unwrap();
+        let ids = match inner.studies.get(&study) {
+            Some(e) => e.trials.clone(),
+            None => {
+                return Err(Error::NotFound {
+                    kind: "study",
+                    id: study.to_string(),
+                });
+            }
+        };
+        for tid in ids {
+            let claimable = match inner.trials.get(&tid).map(|r| r.state) {
+                Some(TrialState::Waiting) => true,
+                // A running trial with an expired lease is an orphan.
+                Some(TrialState::Running) => {
+                    inner.leases.get(&tid).is_none_or(|(_, exp)| *exp <= now_ms)
+                }
+                _ => false,
+            };
+            if claimable {
+                let rec = inner.trials.get_mut(&tid).unwrap();
+                rec.state = TrialState::Running;
+                rec.timing.started_at_ms.get_or_insert(now_ms);
+                inner
+                    .leases
+                    .insert(tid, (owner.to_string(), lease_expiry_ms));
+                return Ok(Some(tid));
+            }
+        }
+        Ok(None)
+    }
+
+    fn renew_lease(&self, trial: TrialId, owner: &str, new_expiry_ms: u64) -> Result<bool> {
+        let mut inner = self.inner.lock().unwrap();
+        match inner.leases.get(&trial) {
+            Some((o, _)) if o == owner => {
+                inner
+                    .leases
+                    .insert(trial, (owner.to_string(), new_expiry_ms));
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn recover_orphans(&self, study: StudyId, now_ms: u64) -> Result<usize> {
+        let mut inner = self.inner.lock().unwrap();
+        let ids = match inner.studies.get(&study) {
+            Some(e) => e.trials.clone(),
+            None => return Ok(0),
+        };
+        let mut recovered = 0;
+        for tid in ids {
+            let running = inner.trials.get(&tid).map(|r| r.state) == Some(TrialState::Running);
+            let expired = inner
+                .leases
+                .get(&tid)
+                .is_some_and(|(_, exp)| *exp <= now_ms);
+            if running && expired {
+                inner.trials.get_mut(&tid).unwrap().state = TrialState::Waiting;
+                inner.leases.remove(&tid);
+                recovered += 1;
+            }
+        }
+        Ok(recovered)
     }
 }
 

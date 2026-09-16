@@ -109,6 +109,21 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Distributed alpha (v0.6)
+
+- Distributed lease protocol (§18.2, §23): the `Storage` trait gains
+  `claim_trial` (compare-and-swap: claim a `Waiting` trial, or a `Running` one
+  whose lease expired — an orphan), `renew_lease` (heartbeat + exactly-once
+  guard), and `recover_orphans` (requeue expired leases). Implemented in the
+  in-memory backend and the SQLite backend (schema migration v4, lease columns).
+- `automl-core::distributed`: `enqueue_pending` (the coordinator enqueues
+  `Waiting` trials) and `Worker`, which claims a trial, runs it while renewing
+  its lease at each report (the heartbeat), and completes it **only if it still
+  holds the lease** — so a worker declared dead and reassigned never
+  double-completes. `Storage` stays the single source of truth (stateless
+  coordinator). Tested with interleaved and multi-threaded workers plus orphan
+  recovery.
+
 ### Added — Vision & multi-objective (v0.5)
 
 - Image classification (`automl-burn::vision`, §10/§20): a `CnnClassifier`
