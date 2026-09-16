@@ -10,8 +10,10 @@ or a U-Net. Domain-specific task layers translate an ML problem into those
 generic primitives. Any workload that can produce named metrics can be
 optimized.
 
-> Status: **v0.1 in progress** — building the optimization foundation. See the
-> [full implementation plan](docs/) (v0.1 → v1.0).
+> Status: **v1.0** — the full HPO + NAS + multi-objective + distributed + pipeline
+> story, under [strict semver](docs/STABILITY.md). See the
+> [v1.0 definition-of-done](docs/v1.0-checklist.md) and the
+> [migration guide](docs/MIGRATION.md).
 
 ## Quickstart
 
@@ -61,30 +63,44 @@ run and trains on the CPU.
 | `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette), `AutoAnomaly` (k-NN), `AutoRl` (tabular Q-learning with robust noisy-return aggregation), and `AutoPipeline` (preprocessing + model pipeline search). |
 | `automl-cli` | The `automl` binary: inspect studies (`automl list`) and render a read-only HTML dashboard (`automl dashboard`, with learning-curve overlays and utilization) from a SQLite store. |
 
-Additional crates (`automl-tasks`, `automl-vision`, …) are introduced
-release-by-release under the extraction criteria in the plan (§21).
+Further crates are introduced release-by-release under the extraction criteria in
+the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
 
-## What v0.1 provides today
+## What burn-automl provides
 
 - **Search spaces** — uniform/log/stepped floats and ints, categorical,
   boolean, and conditional/hierarchical branches (a Transformer branch's
   parameters activate only once `model = "transformer"` is chosen).
 - **Samplers** — `Random`, `Grid`, `TPE` (per-branch KDE + random fallback for
-  under-observed conditional branches), and `Evolutionary` (a real-coded genetic
-  algorithm), all correct over every conditional space.
-- **Pruning** — median pruner with warmup and minimum-observation guards.
+  under-observed conditional branches), `Evolutionary` (a real-coded genetic
+  algorithm), and `QMC` (Halton), all correct over every conditional space.
+- **Pruning** — median (with warmup, min-observation, and a robust noisy-curve
+  mode), ASHA successive-halving, and multi-objective pruners.
 - **Storage** — thread-safe in-memory backend plus a persistent `SqliteStorage`
-  (feature `sqlite`) with versioned migrations and study resume; reporting is
-  idempotent by `(trial, step)`.
-- **Budgets** — `Budget` as a trait: trials, wall time, epochs, unbounded.
-- **Executors** — `SequentialExecutor` (deterministic default) and
-  `ThreadExecutor` (scoped thread pool) tiers behind an `Executor` trait.
-- **Studies** — the `Study` handle and a deterministic, replayable
-  optimization loop with pluggable executors.
-- **Importance analysis** — dependency-free main-effect (fANOVA-style)
-  hyperparameter importance over a study's history, as a plain data structure.
+  (feature `sqlite`) with versioned migrations, study resume, and artifacts;
+  reporting is idempotent by `(trial, step)`.
+- **Budgets** — `Budget` as a trait: trials, wall time, epochs, steps, unbounded.
+- **Executors & distribution** — `SequentialExecutor`, `ThreadExecutor`, and a
+  lease-backed distributed worker protocol (claim / heartbeat / orphan recovery)
+  with exactly-once completion.
+- **Studies** — the `Study` handle and a deterministic, replayable optimization
+  loop with pluggable executors, samplers and pruners.
 - **Multi-objective** — `ParetoFront` with direction-aware dominance and
   hypervolume, via `Study::pareto_front()`.
+- **Robust aggregation** — replicated evaluation with median/trimmed-mean
+  aggregates for noisy objectives (RL, GANs).
+- **NAS & pipelines** — architecture graphs (`MacroSpace`) and full pipelines
+  (`PipelineSpace`) encoded as ordinary conditional search spaces, plus
+  multimodal fusion with pre-scheduling constraint validation.
+- **Observability** — dependency-free hyperparameter importance and a read-only
+  HTML dashboard with learning-curve overlays and utilization.
+
+## Stability
+
+`burn-automl` 1.0 is under **strict semver**: no breaking change to a public API
+without a major version bump. See [docs/STABILITY.md](docs/STABILITY.md) for the
+trait contract and [docs/MIGRATION.md](docs/MIGRATION.md) for schema
+compatibility.
 
 ## Development
 
