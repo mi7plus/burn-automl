@@ -84,6 +84,10 @@ pub mod trial;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 
+/// Shared PostgreSQL storage backend (enable the `postgres` feature).
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
 pub use error::{Error, Result};
 
 /// The common imports for using the engine.
@@ -115,6 +119,8 @@ pub mod prelude {
     pub use crate::space::{Condition, SearchSpace};
     #[cfg(feature = "sqlite")]
     pub use crate::sqlite::SqliteStorage;
+    #[cfg(feature = "postgres")]
+    pub use crate::postgres::PostgresStorage;
     pub use crate::storage::{InMemoryStorage, Storage, StudyMeta};
     pub use crate::study::{Study, StudyBuilder};
     pub use crate::tpe::TpeSampler;

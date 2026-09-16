@@ -15,6 +15,10 @@ authors.workspace = true
 # Off by default: the SQLite backend compiles a bundled C library, which plain
 # in-memory HPO users should not have to build (extraction trigger #1, §21.1).
 sqlite = ["dep:rusqlite"]
+# The PostgreSQL backend (§18.4) for a shared distributed store. Off by default;
+# integration tests need a live server (set TEST_POSTGRES_URL) and are skipped
+# otherwise.
+postgres = ["dep:postgres"]
 
 [dependencies]
 rand.workspace = true
@@ -23,5 +27,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror.workspace = true
 rusqlite = { workspace = true, optional = true }
+postgres = { version = "0.19", optional = true }
 
 [dev-dependencies]
