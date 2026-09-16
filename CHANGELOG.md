@@ -115,6 +115,10 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   (two conv blocks + adaptive pooling + linear head, channel widths searchable)
   and `AutoVision`, a one-call image-classification search. Adaptive pooling
   makes the head independent of input resolution.
+- Semantic segmentation (`automl-burn::segmentation`, §10/§20): a same-resolution
+  `FcnSegmenter` producing per-pixel logits, a mean-IoU metric, and
+  `AutoSegmentation`, a one-call segmentation search over images and per-pixel
+  masks.
 
 - Hypervolume reporting (§17.1, §23): `Study::hypervolume(reference)` and
   `Study::hypervolume_history(reference)` — the latter the monotone
