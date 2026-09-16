@@ -53,6 +53,7 @@
 #![warn(missing_docs)]
 
 pub mod budget;
+pub mod checkpoint;
 pub mod distributed;
 pub mod distribution;
 pub mod error;
@@ -60,6 +61,7 @@ pub mod evolution;
 pub mod executor;
 pub mod importance;
 pub mod metrics;
+pub mod nas;
 pub mod objective;
 pub mod param;
 pub mod pareto;
@@ -85,6 +87,7 @@ pub mod prelude {
     pub use crate::budget::{
         Budget, Consumption, EpochBudget, StepBudget, TrialBudget, Unbounded, WallTimeBudget,
     };
+    pub use crate::checkpoint::CheckpointPromoter;
     pub use crate::distributed::{enqueue_pending, Poll, Worker};
     pub use crate::distribution::Distribution;
     pub use crate::error::{Error, Result};
@@ -92,6 +95,7 @@ pub mod prelude {
     pub use crate::executor::{Executor, ResourceSpec, SequentialExecutor, ThreadExecutor};
     pub use crate::importance::{importance, ParamImportance};
     pub use crate::metrics::{Direction, NamedMetrics, Objective as ObjectiveSpec};
+    pub use crate::nas::{Architecture, Layer, MacroSpace, OpPalette};
     pub use crate::objective::{Objective, ReportSink, TaskAdapter};
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
