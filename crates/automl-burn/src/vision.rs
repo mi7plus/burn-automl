@@ -218,7 +218,7 @@ impl AutoVision {
 
 type ImgData = (Vec<Vec<f32>>, Vec<i64>, Vec<usize>, Vec<usize>);
 
-fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
+pub(crate) fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
     let mut idx: Vec<usize> = (0..n).collect();
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
     idx.shuffle(&mut rng);
@@ -288,7 +288,7 @@ fn accuracy<B: Backend>(
     correct as f32 / val_idx.len() as f32 * 100.0
 }
 
-fn image_tensor<B: Backend>(
+pub(crate) fn image_tensor<B: Backend>(
     imgs: &[Vec<f32>],
     idx: &[usize],
     dims: (usize, usize, usize),
