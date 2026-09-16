@@ -24,20 +24,24 @@
 pub mod audio;
 pub mod detection;
 pub mod evaluation;
+pub mod nas;
 pub mod segmentation;
 pub mod sequence;
 pub mod tabular;
 pub mod timeseries;
 pub mod transformer;
+pub mod video;
 pub mod vision;
 pub use audio::AutoAudio;
 pub use detection::AutoDetection;
 pub use evaluation::Evaluation;
+pub use nas::{AutoNas, NasCnn};
 pub use segmentation::AutoSegmentation;
 pub use sequence::AutoSequence;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
 pub use timeseries::{AutoForecaster, TimeSplit};
 pub use transformer::AutoTransformer;
+pub use video::AutoVideo;
 pub use vision::AutoVision;
 
 use automl_core::error::Result as CoreResult;
