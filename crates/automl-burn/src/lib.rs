@@ -21,6 +21,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod audio;
+pub mod detection;
 pub mod evaluation;
 pub mod segmentation;
 pub mod sequence;
@@ -28,6 +30,8 @@ pub mod tabular;
 pub mod timeseries;
 pub mod transformer;
 pub mod vision;
+pub use audio::AutoAudio;
+pub use detection::AutoDetection;
 pub use evaluation::Evaluation;
 pub use segmentation::AutoSegmentation;
 pub use sequence::AutoSequence;

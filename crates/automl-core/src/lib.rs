@@ -53,6 +53,7 @@
 #![warn(missing_docs)]
 
 pub mod budget;
+pub mod distributed;
 pub mod distribution;
 pub mod error;
 pub mod evolution;
@@ -84,6 +85,7 @@ pub mod prelude {
     pub use crate::budget::{
         Budget, Consumption, EpochBudget, StepBudget, TrialBudget, Unbounded, WallTimeBudget,
     };
+    pub use crate::distributed::{enqueue_pending, Poll, Worker};
     pub use crate::distribution::Distribution;
     pub use crate::error::{Error, Result};
     pub use crate::evolution::EvolutionarySampler;

@@ -109,6 +109,29 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Distributed alpha (v0.6)
+
+- Single-object detection (`automl-burn::detection`, §10/§20): a `Detector` CNN
+  that regresses a normalized bounding box, a `box_iou` metric, and
+  `AutoDetection`, a one-call localization search scored by mean box IoU.
+- Speech/audio classification (`automl-burn::audio`, §12/§20): a `spectrogram`
+  front-end (windowed Hann DFT) and `AutoAudio`, which turns waveforms into
+  spectrogram sequences and classifies them with the recurrent `AutoSequence`
+  model.
+
+- Distributed lease protocol (§18.2, §23): the `Storage` trait gains
+  `claim_trial` (compare-and-swap: claim a `Waiting` trial, or a `Running` one
+  whose lease expired — an orphan), `renew_lease` (heartbeat + exactly-once
+  guard), and `recover_orphans` (requeue expired leases). Implemented in the
+  in-memory backend and the SQLite backend (schema migration v4, lease columns).
+- `automl-core::distributed`: `enqueue_pending` (the coordinator enqueues
+  `Waiting` trials) and `Worker`, which claims a trial, runs it while renewing
+  its lease at each report (the heartbeat), and completes it **only if it still
+  holds the lease** — so a worker declared dead and reassigned never
+  double-completes. `Storage` stays the single source of truth (stateless
+  coordinator). Tested with interleaved and multi-threaded workers plus orphan
+  recovery.
+
 ### Added — Vision & multi-objective (v0.5)
 
 - Image classification (`automl-burn::vision`, §10/§20): a `CnnClassifier`
@@ -165,6 +188,11 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   Uses the CPU-only `ndarray` backend (no GPU/system deps). Includes a
   download-free synthetic-task test and an end-to-end `mnist_search` example.
 
-### Not yet implemented (planned for v0.1 completion)
+### Deferred
 
-- Process executor tier (crash isolation) and the distributed tier (§18).
+- Process executor tier (crash isolation), §18.
+- PostgreSQL storage backend (§18.4): the distributed lease protocol is
+  backend-agnostic and the SQLite backend already implements the persistent
+  lease table, so a Postgres backend is a mechanical translation behind a
+  feature flag — deferred until a database is available to test against rather
+  than shipping unverified DB code.
