@@ -8,9 +8,36 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
-## [Unreleased]
+## [1.0.0] — 2026-09-17
 
-### Added — v0.1 optimization foundation (in progress)
+First release under **strict semver**. From here, no breaking change to a public
+API ships without a major version bump; see [docs/STABILITY.md](docs/STABILITY.md)
+and the [migration guide](docs/MIGRATION.md). This release wires the full
+HPO + NAS + multi-objective + distributed + pipeline story end to end (proved by
+`crates/automl-tasks/tests/end_to_end.rs`, one strand per §28 DoD item) and
+completes the documentation pass.
+
+### v1.0 stabilization
+
+- **Strict-semver stability contract** ([docs/STABILITY.md](docs/STABILITY.md)):
+  the public trait surface (`Sampler`, `Pruner`, `Executor`, `Storage`, `Budget`,
+  `TaskAdapter`), the slow-moving `Study` API, storage-schema compatibility, and
+  determinism are all documented guarantees; new trait capabilities ship only as
+  default-implemented methods.
+- **Migration guarantees** ([docs/MIGRATION.md](docs/MIGRATION.md)): the SQLite
+  schema history (v1–v4) is documented with additive-only, forward-compatible
+  upgrades and a downgrade path; a study from any earlier release stays loadable.
+- **End-to-end story suite**: an integration test exercising HPO + resume,
+  multi-objective + Pareto/hypervolume, NAS macro-space search, executable
+  pipeline search, multimodal pre-scheduling validation, distributed
+  exactly-once draining, and deterministic replay — against the real public API.
+- **Documentation pass**: [docs/v1.0-checklist.md](docs/v1.0-checklist.md) maps
+  every §28 DoD item to its implementation and proof; README updated to 1.0.
+
+**Breaking:** none. This release only adds the stability contract and docs; no
+public trait or `Study` signature changed from the 0.x line.
+
+### Added — v0.1 optimization foundation
 
 - `automl-core` crate: framework-agnostic optimization engine.
 - Parameter distributions (`Distribution`): uniform/log/stepped floats and
