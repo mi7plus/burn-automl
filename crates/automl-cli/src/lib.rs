@@ -1,12 +1,19 @@
-//! `automl-cli` library: study inspection and the read-only dashboard v0
+//! `automl-cli` library: study inspection and the read-only dashboard
 //! (PRD §25).
 //!
 //! The plan pulls a minimal dashboard forward from the v1.0 checklist so the
-//! tool is inspectable while it is dogfooded. This v0 renders a **self-contained
-//! HTML page** — trial list, objective-over-time, and per-parameter scatter —
-//! read-only against a study's stored history, with no new persisted state and
-//! no external assets. It inherits whatever consistency guarantees `Storage`
-//! already provides (§25); a live local server can layer on later.
+//! tool is inspectable while it is dogfooded. It renders a **self-contained HTML
+//! page** read-only against a study's stored history, with no new persisted state
+//! and no external assets — inheriting whatever consistency guarantees `Storage`
+//! already provides, including under the distributed protocol (§25).
+//!
+//! v0 shipped the trial list, objective-over-time and per-parameter scatter. The
+//! **v1** additions (roadmap v0.9): per-trial **learning-curve overlays colored
+//! by fate** (surviving vs pruned vs failed) — the introspection §25 asks for to
+//! compare pruned and surviving trials — and a **run-summary / utilization**
+//! panel (state breakdown and wall-time totals). Genuine per-worker identity
+//! would require lease columns in the record; the dashboard stays a pure function
+//! of `Storage` history, so it never grows its own consistency story.
 
 use automl_core::metrics::Direction;
 use automl_core::storage::StudyMeta;
@@ -15,6 +22,8 @@ use serde_json::json;
 
 /// Render a study's history as a standalone HTML dashboard string.
 pub fn render_dashboard(meta: &StudyMeta, records: &[TrialRecord]) -> String {
+    // The primary objective names the learning-curve metric overlaid per trial.
+    let obj0 = meta.directions.first().map(|(n, _)| n.clone());
     let trials: Vec<serde_json::Value> = records
         .iter()
         .map(|r| {
@@ -28,12 +37,22 @@ pub fn render_dashboard(meta: &StudyMeta, records: &[TrialRecord]) -> String {
                 .as_ref()
                 .map(|m| m.iter().map(|(k, v)| (k.clone(), json!(v))).collect())
                 .unwrap_or_default();
+            // Per-trial learning curve for the primary objective (v1 overlay).
+            let curve: Vec<serde_json::Value> = match &obj0 {
+                Some(name) => r
+                    .intermediate
+                    .iter()
+                    .filter_map(|ir| ir.metrics.get(name).map(|v| json!([ir.step, v])))
+                    .collect(),
+                None => Vec::new(),
+            };
             json!({
                 "id": r.id.0,
                 "state": state_str(r.state),
                 "wall_ms": r.wall_time_ms(),
                 "params": params,
                 "metrics": metrics,
+                "curve": curve,
             })
         })
         .collect();
@@ -144,6 +163,12 @@ const TEMPLATE: &str = r##"<!doctype html>
   th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
   th { color:var(--muted); font-weight:600; }
   .state-pruned{ color:var(--pruned); } .state-failed{ color:var(--failed); }
+  .curve-survive{ stroke:var(--accent); } .curve-pruned{ stroke:var(--pruned); } .curve-failed{ stroke:var(--failed); }
+  .legend{ color:var(--muted); font-size:12px; margin-top:8px; }
+  .legend .key{ display:inline-block; width:18px; height:0; border-top:2px solid; vertical-align:middle; margin:0 4px 0 10px; }
+  .legend .survive{ border-color:var(--accent); } .legend .pruned{ border-color:var(--pruned); } .legend .failed{ border-color:var(--failed); }
+  .stat{ display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line); }
+  .stat b{ font-weight:600; font-variant-numeric:tabular-nums; }
   .tablewrap { max-height:420px; overflow:auto; }
   select { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line);
            border-radius:6px; padding:3px 6px; }
@@ -157,6 +182,11 @@ const TEMPLATE: &str = r##"<!doctype html>
 <div class="grid">
   <div class="card"><h2>Objective over time</h2><div id="curve"></div></div>
   <div class="card"><h2>Parameter scatter <span id="scatterctl"></span></h2><div id="scatter"></div></div>
+</div>
+<div class="grid" style="margin-top:24px">
+  <div class="card"><h2>Learning curves · pruned vs surviving</h2><div id="curves"></div>
+    <div class="legend"><span class="key survive"></span>surviving <span class="key pruned"></span>pruned <span class="key failed"></span>failed</div></div>
+  <div class="card"><h2>Run summary &amp; utilization</h2><div id="summary"></div></div>
 </div>
 <div class="card" style="margin-top:24px"><h2>Trials</h2><div class="tablewrap"><div id="table"></div></div></div>
 
@@ -215,6 +245,49 @@ const CONFIG = /*__DATA__*/null;
     chart(el, pts, null);
   }
   sel.addEventListener("change", scatter); scatter();
+
+  // ---- learning-curve overlay: every trial's curve, colored by fate ----
+  (function(){
+    const el=document.getElementById("curves");
+    const series=trials.map(t=>({state:t.state, pts:(t.curve||[])})).filter(s=>s.pts.length>=1);
+    if(!series.length){ el.innerHTML="<p style='color:var(--muted)'>No intermediate reports.</p>"; return; }
+    const all=series.flatMap(s=>s.pts);
+    const xs=all.map(p=>p[0]), ys=all.map(p=>p[1]);
+    const W=460,H=260,P=34;
+    const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+    const sx=v=>P+(W-2*P)*((v-x0)/((x1-x0)||1)), sy=v=>H-P-(H-2*P)*((v-y0)/((y1-y0)||1));
+    const cls=s=> s==="pruned"?"curve-pruned": s==="failed"?"curve-failed":"curve-survive";
+    let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+    s+=`<line class="axis" x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}"/><line class="axis" x1="${P}" y1="${P}" x2="${P}" y2="${H-P}"/>`;
+    s+=`<text class="tick" x="${P}" y="${H-P+14}">${x0}</text><text class="tick" x="${W-P}" y="${H-P+14}" text-anchor="end">${x1}</text>`;
+    s+=`<text class="tick" x="${P-6}" y="${sy(y1)}" text-anchor="end">${fmt(y1)}</text><text class="tick" x="${P-6}" y="${sy(y0)}" text-anchor="end">${fmt(y0)}</text>`;
+    // Draw surviving last so they read on top of pruned/failed.
+    for(const grp of ["pruned","failed","complete"]){
+      for(const ser of series.filter(z=>z.state===grp || (grp==="complete" && z.state!=="pruned" && z.state!=="failed"))){
+        if(ser.pts.length===1){ s+=`<circle class="${cls(ser.state)}" cx="${sx(ser.pts[0][0])}" cy="${sy(ser.pts[0][1])}" r="2" style="fill:currentColor"/>`; continue; }
+        s+=`<polyline fill="none" stroke-width="1.4" class="${cls(ser.state)}" points="`+ser.pts.map(p=>`${sx(p[0])},${sy(p[1])}`).join(" ")+`"/>`;
+      }
+    }
+    el.innerHTML=s+`</svg>`;
+  })();
+
+  // ---- run summary & utilization ----
+  (function(){
+    const el=document.getElementById("summary");
+    const by={}; for(const t of trials){ by[t.state]=(by[t.state]||0)+1; }
+    const walls=trials.map(t=>t.wall_ms).filter(w=>typeof w==="number");
+    const sum=walls.reduce((a,b)=>a+b,0);
+    const mean=walls.length? sum/walls.length : 0;
+    const max=walls.length? Math.max(...walls) : 0;
+    const row=(k,v)=>`<div class="stat"><span>${k}</span><b>${v}</b></div>`;
+    let h="";
+    h+=row("trials", trials.length);
+    for(const st of ["complete","pruned","failed","running","waiting"]) if(by[st]) h+=row(st, by[st]);
+    h+=row("total wall (ms)", sum||"—");
+    h+=row("mean wall (ms)", walls.length? Math.round(mean): "—");
+    h+=row("max wall (ms)", max||"—");
+    el.innerHTML=h;
+  })();
 
   // ---- trials table ----
   const cols=["id","state","wall (ms)",...objs.map(o=>o.name),...paramNames];
@@ -278,6 +351,35 @@ mod tests {
         // The placeholder was substituted.
         assert!(!html.contains("/*__DATA__*/null"));
         assert!(!html.contains("__TITLE__"));
+    }
+
+    #[test]
+    fn dashboard_v1_embeds_curves_and_panels() {
+        use automl_core::trial::IntermediateReport;
+        let mut surviving = rec(0, 1.0, 0.1, TrialState::Complete);
+        surviving.intermediate = vec![
+            IntermediateReport {
+                step: 1,
+                metrics: NamedMetrics::single("loss", 0.5),
+            },
+            IntermediateReport {
+                step: 2,
+                metrics: NamedMetrics::single("loss", 0.1),
+            },
+        ];
+        let mut pruned = rec(1, 2.0, 0.9, TrialState::Pruned);
+        pruned.intermediate = vec![IntermediateReport {
+            step: 1,
+            metrics: NamedMetrics::single("loss", 0.9),
+        }];
+        let html = render_dashboard(&meta(), &[surviving, pruned]);
+        // Per-trial curves are embedded for the overlay.
+        assert!(html.contains("\"curve\""));
+        // The v1 panels are present and still self-contained.
+        assert!(html.contains("Learning curves"));
+        assert!(html.contains("utilization"));
+        assert!(html.contains("curve-pruned"));
+        assert!(!html.contains("http://") && !html.to_lowercase().contains("https://"));
     }
 
     #[test]

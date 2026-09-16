@@ -19,6 +19,25 @@
 //!
 //! The same store backs a single-process pool or many machines; only the
 //! `Storage` implementation changes.
+//!
+//! ## Tuning the lease TTL (v0.9 hardening)
+//!
+//! [`Worker::new`] takes a `lease_ttl_ms` — how long a claim is valid before a
+//! peer may reclaim it as an orphan. It trades failure-detection latency against
+//! tolerance for slow steps:
+//!
+//! - Set the TTL to a comfortable multiple (≈3–5×) of the longest expected gap
+//!   between reports (the heartbeat interval). Each [`ReportSink::report`] renews
+//!   the lease, so a trial that reports steadily never expires mid-run.
+//! - Too short and a healthy-but-slow trial is stolen and wastefully re-run; too
+//!   long and a genuinely dead worker's trial sits idle until the TTL elapses.
+//! - Objectives that report rarely (few, long epochs) want a larger TTL or an
+//!   extra keep-alive report; objectives that report every step tolerate a small
+//!   one. Recovery is idempotent either way — a stolen trial completes exactly
+//!   once — so mistuning costs throughput, never correctness.
+//!
+//! The failure-injection tests below exercise mid-trial crashes, orphan-recovery
+//! under load, and concurrent claim races to keep these guarantees honest (§24).
 
 use crate::error::Result;
 use crate::metrics::NamedMetrics;
@@ -329,5 +348,135 @@ mod tests {
         for t in &ids {
             assert_eq!(storage.load_trial(*t).unwrap().state, TrialState::Waiting);
         }
+    }
+
+    // ---- failure-injection suite (roadmap v0.9, §24 "Failure injection") ------
+    //
+    // These simulate crashes at the storage-protocol level with injected clock
+    // values, so the exactly-once and no-lost-trial guarantees are checked
+    // deterministically rather than by racing wall-clock leases.
+
+    #[test]
+    fn worker_crash_mid_trial_is_recovered_and_completes_once() {
+        let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
+        let study = study_with(&storage);
+        let mut sampler = RandomSampler::new(5);
+        let space = SearchSpace::new().add("x", Distribution::float(-5.0, 5.0));
+        let ids = enqueue_pending(&storage, study, &space, &mut sampler, 1, 5).unwrap();
+        let t = ids[0];
+
+        // Worker A claims and reports partial progress, then crashes (never
+        // completes, never renews).
+        assert_eq!(storage.claim_trial(study, "a", 0, 100).unwrap(), Some(t));
+        storage
+            .report(t, 1, NamedMetrics::single("loss", 9.0))
+            .unwrap();
+
+        // A sweep after the lease expiry requeues the orphan; B picks it up.
+        assert_eq!(storage.recover_orphans(study, 150).unwrap(), 1);
+        assert_eq!(storage.claim_trial(study, "b", 150, 250).unwrap(), Some(t));
+
+        // The crashed worker A can no longer influence the trial (exactly-once).
+        assert!(!storage.renew_lease(t, "a", 300).unwrap());
+        assert!(storage.renew_lease(t, "b", 300).unwrap());
+        storage
+            .complete(
+                t,
+                TrialState::Complete,
+                Some(NamedMetrics::single("loss", 0.0)),
+            )
+            .unwrap();
+
+        // Completed exactly once, with B's result.
+        let history = storage.load_history(study).unwrap();
+        assert_eq!(history.completed().count(), 1);
+        assert_eq!(
+            storage.load_trial(t).unwrap().final_value("loss"),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn orphan_recovery_load_test_loses_no_trials() {
+        // A larger queue processed with a deterministic crash pattern: every third
+        // claim "crashes" (is left un-completed). Repeated recover-and-retry must
+        // eventually complete every trial exactly once, with none lost.
+        let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
+        let study = study_with(&storage);
+        let mut sampler = RandomSampler::new(7);
+        let space = SearchSpace::new().add("x", Distribution::float(-5.0, 5.0));
+        let n = 40;
+        enqueue_pending(&storage, study, &space, &mut sampler, n, 7).unwrap();
+
+        let mut clock: u64 = 0;
+        let mut claims = 0usize;
+        let mut completed = 0usize;
+        // Bound the loop generously; it should finish far sooner.
+        for _ in 0..1000 {
+            clock += 10;
+            // Requeue anything whose (short) lease has expired.
+            storage.recover_orphans(study, clock).unwrap();
+            let Some(t) = storage.claim_trial(study, "w", clock, clock + 5).unwrap() else {
+                // Nothing claimable now; if all are terminal we are done.
+                if storage.load_history(study).unwrap().completed().count() == n {
+                    break;
+                }
+                continue;
+            };
+            claims += 1;
+            // Every third claim crashes: leave the lease to expire un-completed.
+            if claims.is_multiple_of(3) {
+                continue;
+            }
+            // Otherwise renew (still own it) and complete.
+            assert!(storage.renew_lease(t, "w", clock + 100).unwrap());
+            storage
+                .complete(
+                    t,
+                    TrialState::Complete,
+                    Some(NamedMetrics::single("loss", 1.0)),
+                )
+                .unwrap();
+            completed += 1;
+        }
+
+        assert_eq!(completed, n, "every trial completed exactly once");
+        let history = storage.load_history(study).unwrap();
+        assert_eq!(history.completed().count(), n);
+        // No trial left stranded in Waiting/Running.
+        assert!(history
+            .records()
+            .iter()
+            .all(|r| r.state == TrialState::Complete));
+    }
+
+    #[test]
+    fn concurrent_claims_on_one_trial_are_mutually_exclusive() {
+        // Many threads race to claim a single available trial at the same instant;
+        // the compare-and-swap must grant it to exactly one.
+        let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
+        let study = study_with(&storage);
+        let mut sampler = RandomSampler::new(11);
+        let space = SearchSpace::new().add("x", Distribution::float(-5.0, 5.0));
+        let ids = enqueue_pending(&storage, study, &space, &mut sampler, 1, 11).unwrap();
+        let t = ids[0];
+
+        let winners: usize = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..16)
+                .map(|w| {
+                    let storage = storage.clone();
+                    scope.spawn(move || {
+                        let owner = format!("w{w}");
+                        matches!(
+                            storage.claim_trial(study, &owner, 0, 1000),
+                            Ok(Some(id)) if id == t
+                        ) as usize
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).sum()
+        });
+
+        assert_eq!(winners, 1, "exactly one worker may claim the trial");
     }
 }
