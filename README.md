@@ -57,8 +57,8 @@ run and trains on the CPU.
 | Crate | Role |
 |-------|------|
 | `automl-core` | Framework-agnostic engine: distributions, search spaces, samplers, pruners, storage, budgets, executors, studies. No `burn` or `automl-*` dependencies. |
-| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), and neural architecture search (`AutoNas`). CPU (`ndarray`) backend by default. |
-| `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette) and `AutoAnomaly` (k-NN). |
+| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), neural architecture search (`AutoNas`), and generative (`AutoAutoencoder`). CPU (`ndarray`) backend by default. |
+| `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette), `AutoAnomaly` (k-NN), and `AutoRl` (tabular Q-learning with robust noisy-return aggregation). |
 | `automl-cli` | The `automl` binary: inspect studies (`automl list`) and render a read-only HTML dashboard (`automl dashboard`) from a SQLite store. |
 
 Additional crates (`automl-tasks`, `automl-vision`, …) are introduced
