@@ -67,6 +67,7 @@ pub mod objective;
 pub mod param;
 pub mod pareto;
 pub mod pipeline;
+pub mod process;
 pub mod provenance;
 pub mod pruner;
 pub mod qmc;
@@ -104,6 +105,7 @@ pub mod prelude {
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pipeline::{Component, PipelinePlan, PipelineSpace, Stage, StageChoice};
+    pub use crate::process::{ProcessPool, ProcessReport};
     pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
     pub use crate::qmc::QmcSampler;
