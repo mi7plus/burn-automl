@@ -24,6 +24,7 @@
 pub mod audio;
 pub mod detection;
 pub mod evaluation;
+pub mod generative;
 pub mod nas;
 pub mod segmentation;
 pub mod sequence;
@@ -35,6 +36,7 @@ pub mod vision;
 pub use audio::AutoAudio;
 pub use detection::AutoDetection;
 pub use evaluation::Evaluation;
+pub use generative::{gan_space, AutoAutoencoder, Autoencoder, DiffusionSchedule};
 pub use nas::{AutoNas, NasCnn};
 pub use segmentation::AutoSegmentation;
 pub use sequence::AutoSequence;
