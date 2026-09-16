@@ -61,6 +61,16 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE trials ADD COLUMN started_at   INTEGER; -- unix millis or NULL
     ALTER TABLE trials ADD COLUMN completed_at INTEGER; -- unix millis or NULL
     "#,
+    // v3: per-trial binary artifacts (§19 "Artifacts": checkpoints, exported
+    // models, configs, logs).
+    r#"
+    CREATE TABLE artifacts (
+        trial_id INTEGER NOT NULL REFERENCES trials(id),
+        name     TEXT NOT NULL,
+        bytes    BLOB NOT NULL,
+        PRIMARY KEY (trial_id, name)
+    );
+    "#,
 ];
 
 /// A persistent [`Storage`] backend over a SQLite database file.
@@ -401,6 +411,40 @@ impl Storage for SqliteStorage {
             pruner_name,
         })
     }
+
+    fn save_artifact(&self, trial: TrialId, name: &str, bytes: &[u8]) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO artifacts (trial_id, name, bytes) VALUES (?1, ?2, ?3)",
+            params![trial.0 as i64, name, bytes],
+        )
+        .map_err(sql)?;
+        Ok(())
+    }
+
+    fn load_artifact(&self, trial: TrialId, name: &str) -> Result<Option<Vec<u8>>> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT bytes FROM artifacts WHERE trial_id = ?1 AND name = ?2",
+            params![trial.0 as i64, name],
+            |r| r.get::<_, Vec<u8>>(0),
+        )
+        .optional()
+        .map_err(sql)
+    }
+
+    fn list_artifacts(&self, trial: TrialId) -> Result<Vec<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT name FROM artifacts WHERE trial_id = ?1 ORDER BY name")
+            .map_err(sql)?;
+        let names = stmt
+            .query_map(params![trial.0 as i64], |r| r.get::<_, String>(0))
+            .map_err(sql)?
+            .map(|r| r.map_err(sql))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(names)
+    }
 }
 
 /// Map a rusqlite error into our storage error.
@@ -507,6 +551,28 @@ mod tests {
             s.load_history(StudyId(123)),
             Err(Error::NotFound { kind: "study", .. })
         ));
+    }
+
+    #[test]
+    fn artifacts_persist_and_survive_reopen() {
+        let path = temp_db_path("artifacts");
+        let (study, trial);
+        {
+            let s = SqliteStorage::open(&path).unwrap();
+            study = s.create_study(meta()).unwrap();
+            trial = s.enqueue_trial(study, ParamSet::new(), 1).unwrap();
+            s.save_artifact(trial, "ckpt", &[0u8, 1, 2, 3, 255])
+                .unwrap();
+        }
+        // Reopen: v3 migration applied, artifact still present.
+        let s = SqliteStorage::open(&path).unwrap();
+        assert_eq!(s.schema_version().unwrap(), MIGRATIONS.len() as i64);
+        assert_eq!(
+            s.load_artifact(trial, "ckpt").unwrap(),
+            Some(vec![0, 1, 2, 3, 255])
+        );
+        assert_eq!(s.list_artifacts(trial).unwrap(), vec!["ckpt".to_string()]);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

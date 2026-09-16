@@ -81,6 +81,30 @@ pub trait Storage: Send + Sync {
 
     /// Load a study's metadata.
     fn load_meta(&self, study: StudyId) -> Result<StudyMeta>;
+
+    /// Save a named binary artifact for a trial — a checkpoint, exported model,
+    /// config or log (PRD §19 "Artifacts"). Idempotent by `(trial, name)`: a
+    /// re-save overwrites. Backends that do not support artifacts return an
+    /// error from the default implementation.
+    fn save_artifact(&self, trial: TrialId, name: &str, bytes: &[u8]) -> Result<()> {
+        let _ = (trial, name, bytes);
+        Err(Error::Storage(
+            "this storage backend does not support artifacts".into(),
+        ))
+    }
+
+    /// Load a named artifact for a trial, or `None` if absent. Defaults to
+    /// `None` for backends without artifact support.
+    fn load_artifact(&self, trial: TrialId, name: &str) -> Result<Option<Vec<u8>>> {
+        let _ = (trial, name);
+        Ok(None)
+    }
+
+    /// List the artifact names stored for a trial. Defaults to empty.
+    fn list_artifacts(&self, trial: TrialId) -> Result<Vec<String>> {
+        let _ = trial;
+        Ok(Vec::new())
+    }
 }
 
 /// Internal per-study bookkeeping for the in-memory backend.
@@ -96,6 +120,7 @@ struct Inner {
     next_trial: u64,
     studies: BTreeMap<StudyId, StudyEntry>,
     trials: BTreeMap<TrialId, TrialRecord>,
+    artifacts: BTreeMap<(TrialId, String), Vec<u8>>,
 }
 
 /// A thread-safe, non-persistent [`Storage`] backend.
@@ -236,6 +261,29 @@ impl Storage for InMemoryStorage {
                 id: study.to_string(),
             })
     }
+
+    fn save_artifact(&self, trial: TrialId, name: &str, bytes: &[u8]) -> Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+        inner
+            .artifacts
+            .insert((trial, name.to_string()), bytes.to_vec());
+        Ok(())
+    }
+
+    fn load_artifact(&self, trial: TrialId, name: &str) -> Result<Option<Vec<u8>>> {
+        let inner = self.inner.lock().unwrap();
+        Ok(inner.artifacts.get(&(trial, name.to_string())).cloned())
+    }
+
+    fn list_artifacts(&self, trial: TrialId) -> Result<Vec<String>> {
+        let inner = self.inner.lock().unwrap();
+        Ok(inner
+            .artifacts
+            .keys()
+            .filter(|(t, _)| *t == trial)
+            .map(|(_, name)| name.clone())
+            .collect())
+    }
 }
 
 #[cfg(test)]
@@ -290,6 +338,25 @@ mod tests {
             s.enqueue_trial(StudyId(99), ParamSet::new(), 1),
             Err(Error::NotFound { kind: "study", .. })
         ));
+    }
+
+    #[test]
+    fn artifacts_roundtrip_and_list() {
+        let s = InMemoryStorage::new();
+        let study = s.create_study(meta()).unwrap();
+        let t = s.enqueue_trial(study, ParamSet::new(), 1).unwrap();
+        s.save_artifact(t, "model.bin", &[1, 2, 3]).unwrap();
+        s.save_artifact(t, "config.json", b"{}").unwrap();
+        s.save_artifact(t, "model.bin", &[9, 9]).unwrap(); // overwrite
+
+        assert_eq!(s.load_artifact(t, "model.bin").unwrap(), Some(vec![9, 9]));
+        assert_eq!(s.load_artifact(t, "missing").unwrap(), None);
+        let mut names = s.list_artifacts(t).unwrap();
+        names.sort();
+        assert_eq!(
+            names,
+            vec!["config.json".to_string(), "model.bin".to_string()]
+        );
     }
 
     #[test]

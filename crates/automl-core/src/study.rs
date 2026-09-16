@@ -231,6 +231,36 @@ impl Study {
         Ok(front)
     }
 
+    /// The dominated hypervolume of the current Pareto front relative to a
+    /// `reference` point (PRD §17.1, §23 hypervolume reporting). Larger is
+    /// better; a scalar summary of multi-objective progress.
+    pub fn hypervolume(&self, reference: &NamedMetrics) -> Result<f64> {
+        Ok(self.pareto_front()?.hypervolume(reference))
+    }
+
+    /// The hypervolume after each completed trial, in trial-id order — the
+    /// hypervolume-over-time curve used for multi-objective progress reporting
+    /// (§25). Recomputes an incremental front, so cost is quadratic in trials.
+    pub fn hypervolume_history(&self, reference: &NamedMetrics) -> Result<Vec<f64>> {
+        let objectives: Vec<_> = self
+            .directions
+            .iter()
+            .map(|(name, direction)| crate::metrics::Objective {
+                name: name.clone(),
+                direction: *direction,
+            })
+            .collect();
+        let mut front = crate::pareto::ParetoFront::new(objectives);
+        let mut curve = Vec::new();
+        for rec in self.storage.load_history(self.id)?.completed() {
+            if let Some(metrics) = &rec.final_metrics {
+                front.insert(rec.id, metrics);
+            }
+            curve.push(front.hypervolume(reference));
+        }
+        Ok(curve)
+    }
+
     /// Per-parameter importance for the study's first objective, most-important
     /// first (PRD §25). Returns a plain data structure with no UI dependency.
     pub fn importance(&self) -> Result<Vec<crate::importance::ParamImportance>> {
@@ -543,8 +573,20 @@ mod tests {
             front.len()
         );
         // Hypervolume relative to a worst-case reference is positive.
-        let hv = front.hypervolume(&NamedMetrics::new().with("err", 10.0).with("size", 0.0));
+        let reference = NamedMetrics::new().with("err", 10.0).with("size", 0.0);
+        let hv = front.hypervolume(&reference);
         assert!(hv > 0.0, "hv = {hv}");
+
+        // Study-level hypervolume reporting matches, and the history is
+        // monotonically non-decreasing (the front only ever improves).
+        assert!((study.hypervolume(&reference).unwrap() - hv).abs() < 1e-9);
+        let curve = study.hypervolume_history(&reference).unwrap();
+        assert_eq!(curve.len(), 40);
+        assert!(
+            curve.windows(2).all(|w| w[1] >= w[0] - 1e-9),
+            "hypervolume must not decrease"
+        );
+        assert_eq!(*curve.last().unwrap(), hv);
     }
 
     #[test]

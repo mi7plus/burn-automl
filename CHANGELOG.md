@@ -109,6 +109,17 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Vision & multi-objective (v0.5)
+
+- Hypervolume reporting (§17.1, §23): `Study::hypervolume(reference)` and
+  `Study::hypervolume_history(reference)` — the latter the monotone
+  hypervolume-over-time curve for multi-objective progress.
+- Artifact storage (§19 "Artifacts", §23): `Storage::{save,load,list}_artifact`
+  persist named binary artifacts (checkpoints, exported models, configs, logs)
+  per trial, idempotent by `(trial, name)`. Implemented in the in-memory backend
+  and the SQLite backend (schema migration v3, a `BLOB` `artifacts` table);
+  default trait methods keep custom backends non-breaking.
+
 ### Added — Transformers & unsupervised (v0.4)
 
 - Transformer sequence classifier (`automl-burn::transformer`, §9/§20):
