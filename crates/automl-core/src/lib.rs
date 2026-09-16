@@ -68,6 +68,7 @@ pub mod pareto;
 pub mod provenance;
 pub mod pruner;
 pub mod qmc;
+pub mod robust;
 pub mod sampler;
 pub mod scheduler;
 pub mod space;
@@ -102,6 +103,7 @@ pub mod prelude {
     pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
     pub use crate::qmc::QmcSampler;
+    pub use crate::robust::{replicate, Aggregator};
     pub use crate::sampler::{GridSampler, RandomSampler, Sampler};
     pub use crate::scheduler::{AdmissionError, Device, DeviceLease, DeviceScheduler};
     pub use crate::space::{Condition, SearchSpace};
