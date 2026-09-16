@@ -111,6 +111,11 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
 ### Added — Vision & multi-objective (v0.5)
 
+- Image classification (`automl-burn::vision`, §10/§20): a `CnnClassifier`
+  (two conv blocks + adaptive pooling + linear head, channel widths searchable)
+  and `AutoVision`, a one-call image-classification search. Adaptive pooling
+  makes the head independent of input resolution.
+
 - Hypervolume reporting (§17.1, §23): `Study::hypervolume(reference)` and
   `Study::hypervolume_history(reference)` — the latter the monotone
   hypervolume-over-time curve for multi-objective progress.
