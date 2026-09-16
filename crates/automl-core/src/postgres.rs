@@ -281,7 +281,9 @@ impl Storage for PostgresStorage {
     ) -> Result<()> {
         let mut client = self.client.lock().unwrap();
         let state_json = serde_json::to_string(&state)?;
-        let metrics_json = final_metrics.map(|m| serde_json::to_string(&m)).transpose()?;
+        let metrics_json = final_metrics
+            .map(|m| serde_json::to_string(&m))
+            .transpose()?;
         let affected = client
             .execute(
                 "UPDATE trials SET state = $1, final_metrics = $2, completed_at = $3 WHERE id = $4",
@@ -341,8 +343,7 @@ impl Storage for PostgresStorage {
                 kind: "study",
                 id: study.to_string(),
             })?;
-        let directions: Vec<(String, Direction)> =
-            serde_json::from_str(&row.get::<_, String>(1))?;
+        let directions: Vec<(String, Direction)> = serde_json::from_str(&row.get::<_, String>(1))?;
         Ok(StudyMeta {
             name: row.get(0),
             directions,
@@ -528,14 +529,21 @@ mod tests {
         assert!(!s.renew_lease(t, "b", 200).unwrap());
         assert_eq!(s.recover_orphans(study, 300).unwrap(), 1);
 
-        s.complete(t, TrialState::Complete, Some(NamedMetrics::single("loss", 0.3)))
-            .unwrap();
+        s.complete(
+            t,
+            TrialState::Complete,
+            Some(NamedMetrics::single("loss", 0.3)),
+        )
+        .unwrap();
         let rec = s.load_trial(t).unwrap();
         assert_eq!(rec.state, TrialState::Complete);
         assert_eq!(rec.intermediate[0].metrics.get("loss"), Some(0.4));
         assert_eq!(rec.final_value("loss"), Some(0.3));
         assert_eq!(rec.params.float("x").unwrap(), 1.5);
-        assert_eq!(s.load_artifact(t, "ckpt").unwrap(), Some(vec![1, 2, 3, 255]));
+        assert_eq!(
+            s.load_artifact(t, "ckpt").unwrap(),
+            Some(vec![1, 2, 3, 255])
+        );
         assert_eq!(s.study_ids().unwrap(), vec![study]);
     }
 }

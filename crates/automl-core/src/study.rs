@@ -404,8 +404,7 @@ impl StudyBuilder {
         self
     }
 
-    /// Provide an executor tier (defaults to
-    /// [`SequentialExecutor`](crate::executor::SequentialExecutor) if unset).
+    /// Provide an executor tier (defaults to [`SequentialExecutor`] if unset).
     /// A parallel executor's `preferred_batch_size` becomes the ask-batch size.
     pub fn executor(mut self, executor: Arc<dyn Executor>) -> Self {
         self.executor = Some(executor);

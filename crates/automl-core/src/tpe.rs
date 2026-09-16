@@ -264,10 +264,14 @@ impl TpeSampler {
                 let value = match &def.distribution {
                     Distribution::Float { .. } | Distribution::Int { .. } => {
                         let (lo, hi) = axis_bounds(&def.distribution);
-                        let g_obs: Vec<f64> =
-                            good_vals.iter().map(|v| to_axis(&def.distribution, v)).collect();
-                        let b_obs: Vec<f64> =
-                            bad_vals.iter().map(|v| to_axis(&def.distribution, v)).collect();
+                        let g_obs: Vec<f64> = good_vals
+                            .iter()
+                            .map(|v| to_axis(&def.distribution, v))
+                            .collect();
+                        let b_obs: Vec<f64> = bad_vals
+                            .iter()
+                            .map(|v| to_axis(&def.distribution, v))
+                            .collect();
                         let l = Parzen1D::new(&g_obs, lo, hi);
                         let g = Parzen1D::new(&b_obs, lo, hi);
                         let anchor_x = anchor
@@ -282,18 +286,13 @@ impl TpeSampler {
                     Distribution::Categorical { choices } => {
                         // Keep the anchor's category (preserving joint structure),
                         // scored by its l/g ratio.
-                        let l = cat_probs(&good_vals, choices, |c, v| {
-                            c.iter().position(|x| x == v)
-                        });
-                        let g = cat_probs(&bad_vals, choices, |c, v| {
-                            c.iter().position(|x| x == v)
-                        });
+                        let l =
+                            cat_probs(&good_vals, choices, |c, v| c.iter().position(|x| x == v));
+                        let g = cat_probs(&bad_vals, choices, |c, v| c.iter().position(|x| x == v));
                         let idx = anchor
                             .get(&def.name)
                             .and_then(|v| match v {
-                                ParamValue::Categorical(s) => {
-                                    choices.iter().position(|c| c == s)
-                                }
+                                ParamValue::Categorical(s) => choices.iter().position(|c| c == s),
                                 _ => None,
                             })
                             .unwrap_or_else(|| argmax_ratio(&l, &g));
@@ -743,7 +742,12 @@ mod tests {
                     90,
                 )
                 .unwrap();
-            study.best_trial().unwrap().unwrap().final_value("loss").unwrap()
+            study
+                .best_trial()
+                .unwrap()
+                .unwrap()
+                .final_value("loss")
+                .unwrap()
         }
 
         let seeds = [1u64, 2, 3, 4];

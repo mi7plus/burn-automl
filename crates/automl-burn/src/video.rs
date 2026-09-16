@@ -3,7 +3,7 @@
 //! A clip is a sequence of frames. A fixed spatial front-end average-pools each
 //! frame's channels onto a small `grid × grid` map — a cheap, deterministic
 //! feature extractor — turning the clip into exactly the fixed-length
-//! multivariate sequence the recurrent [`AutoSequence`](crate::AutoSequence)
+//! multivariate sequence the recurrent [`AutoSequence`]
 //! classifier consumes. So video reuses the CNN+RNN pattern (§11 "CNN+RNN"
 //! candidate family) over a pooled spatial front-end, the same way audio reuses
 //! the sequence model over a spectral front-end.

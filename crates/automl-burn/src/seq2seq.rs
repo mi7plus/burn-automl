@@ -20,8 +20,8 @@ use automl_core::prelude::{Distribution, MedianPruner, SearchSpace, Study, TpeSa
 use burn::module::AutodiffModule;
 use burn::nn::loss::CrossEntropyLoss;
 use burn::nn::{Linear, LinearConfig, Lstm, LstmConfig};
-use burn::prelude::*;
 use burn::optim::{AdamConfig, GradientsParams, Optimizer};
+use burn::prelude::*;
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::TensorData;
 use rand::seq::SliceRandom;
@@ -180,11 +180,12 @@ impl AutoSeq2Seq {
         let data = Arc::new((self.sources, self.targets, train, val));
         let epochs = self.epochs;
 
-        let objective = move |p: &ParamSet, sink: &mut dyn ReportSink| -> CoreResult<NamedMetrics> {
-            let cfg = Seq2SeqConfig::new(vocab).with_hidden(p.int("hidden")? as usize);
-            let acc = train_and_eval::<TrainBackend>(&cfg, p.float("lr")?, epochs, &data, sink);
-            Ok(NamedMetrics::single("token_acc", acc as f64))
-        };
+        let objective =
+            move |p: &ParamSet, sink: &mut dyn ReportSink| -> CoreResult<NamedMetrics> {
+                let cfg = Seq2SeqConfig::new(vocab).with_hidden(p.int("hidden")? as usize);
+                let acc = train_and_eval::<TrainBackend>(&cfg, p.float("lr")?, epochs, &data, sink);
+                Ok(NamedMetrics::single("token_acc", acc as f64))
+            };
         study.optimize_n(&objective, self.trials)?;
         Ok(study)
     }
@@ -261,7 +262,8 @@ fn train_and_eval<B: AutodiffBackend>(
             let logits = model.forward(src_t, dec_t); // [b, t_len, vocab]
             let [b, t, v] = logits.dims();
             let targets = target_tensor::<B>(tgt, chunk, t_len, &device); // [b*t]
-            let loss = CrossEntropyLoss::new(None, &device).forward(logits.reshape([b * t, v]), targets);
+            let loss =
+                CrossEntropyLoss::new(None, &device).forward(logits.reshape([b * t, v]), targets);
             let grads = GradientsParams::from_grads(loss.backward(), &model);
             model = optim.step(lr, model, grads);
         }
@@ -287,7 +289,10 @@ fn target_tensor<B: Backend>(
             flat.push(*tgt[i].get(t).unwrap_or(&BOS) as i64);
         }
     }
-    Tensor::<B, 1, Int>::from_data(TensorData::new(flat, [idx.len() * len]).convert::<B::IntElem>(), device)
+    Tensor::<B, 1, Int>::from_data(
+        TensorData::new(flat, [idx.len() * len]).convert::<B::IntElem>(),
+        device,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -336,7 +341,12 @@ mod tests {
     use super::*;
 
     /// The reverse task: target is the source reversed. Symbols are `1..=S`.
-    fn reverse_task(n: usize, s_len: usize, symbols: usize, seed: u64) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
+    fn reverse_task(
+        n: usize,
+        s_len: usize,
+        symbols: usize,
+        seed: u64,
+    ) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
         use rand::{Rng, SeedableRng};
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         let (mut src, mut tgt) = (Vec::new(), Vec::new());
@@ -369,7 +379,9 @@ mod tests {
 
     #[test]
     fn rejects_out_of_vocab_and_empty() {
-        assert!(AutoSeq2Seq::new(vec![vec![9]], vec![vec![1]], 3).fit().is_err());
+        assert!(AutoSeq2Seq::new(vec![vec![9]], vec![vec![1]], 3)
+            .fit()
+            .is_err());
         assert!(AutoSeq2Seq::new(Vec::new(), Vec::new(), 3).fit().is_err());
     }
 }

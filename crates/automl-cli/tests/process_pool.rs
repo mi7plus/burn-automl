@@ -2,8 +2,8 @@
 //! the real `automl worker` binary as crash-isolated subprocesses and drains a
 //! persisted study, recovering orphans when workers crash.
 
-use automl_core::distribution::Distribution;
 use automl_core::distributed::enqueue_pending;
+use automl_core::distribution::Distribution;
 use automl_core::metrics::Direction;
 use automl_core::process::ProcessPool;
 use automl_core::sampler::RandomSampler;
@@ -75,8 +75,14 @@ fn process_pool_recovers_from_worker_crashes() {
         .run(&storage, study)
         .unwrap();
 
-    assert!(report.crashed > 0, "workers were supposed to crash: {report:?}");
-    assert!(report.drained, "recovery should still drain the queue: {report:?}");
+    assert!(
+        report.crashed > 0,
+        "workers were supposed to crash: {report:?}"
+    );
+    assert!(
+        report.drained,
+        "recovery should still drain the queue: {report:?}"
+    );
     assert_eq!(storage.load_history(study).unwrap().completed().count(), 8);
     let _ = std::fs::remove_file(&db);
 }

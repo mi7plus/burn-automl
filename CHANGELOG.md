@@ -8,6 +8,43 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
+## [1.1.0] — 2026-09-17
+
+Additive release (no breaking changes): completes the previously-deferred
+functionality and the remaining coverage/hardening items, plus CI.
+
+### Added
+
+- **CI** — a GitHub Actions workflow enforcing the release gates on push/PR:
+  `fmt --check`, `clippy --all-targets -D warnings`, workspace tests with
+  `sqlite`, an MSRV (1.98.0) build, and a warning-free doc build.
+- **Process executor tier** (`automl-core::process`, §18): `ProcessPool` runs
+  trials in crash-isolated OS subprocesses over the shared lease-backed store —
+  a worker crash only loses that process; its trial's lease expires and is
+  recovered and retried. Adds an `automl worker` subcommand. Integration test
+  drives real subprocesses through a crash-and-recover, exactly-once drain.
+- **PostgreSQL backend** (`automl-core::postgres`, feature `postgres`, §18.4): a
+  shared-server `Storage` mirroring the SQLite backend — same versioned
+  migrations, idempotent reporting, and the lease protocol as a `FOR UPDATE SKIP
+  LOCKED` compare-and-swap. Integration test runs against `TEST_POSTGRES_URL`.
+- **NLP text classification** (`automl-burn::text`, §12): `AutoText` tokenizes and
+  feature-hashes documents into sequences the recurrent classifier consumes.
+- **Sequence-to-sequence** (`automl-burn::seq2seq`, §9): `AutoSeq2Seq`, an LSTM
+  encoder–decoder with teacher-forced training and free-running greedy decode.
+- **Multivariate TPE** (`TpeSampler::multivariate`, §5): joint, good-trial-anchored
+  candidate sampling that follows inter-parameter correlations — fixes the
+  classic independent-per-dim stall on coupled objectives (verified on Rosenbrock).
+- **GPU execution** (`automl-burn` feature `wgpu`, §18): swaps `TrainBackend` to
+  autodiff-over-WGPU so every `Auto*` adapter runs on GPU with no code change.
+- **Larger-dataset example** (`mnist_nas`): architecture search on real MNIST.
+- **Publish metadata**: shared keywords/categories/homepage across crates.
+
+### Breaking
+
+None. Every change is additive: new modules, a new sampler option, new feature
+flags (`postgres`, `wgpu`), and new `Auto*` adapters, all layered over unchanged
+public traits and the `Study` API.
+
 ## [1.0.0] — 2026-09-17
 
 First release under **strict semver**. From here, no breaking change to a public
@@ -298,9 +335,8 @@ public trait or `Study` signature changed from the 0.x line.
 
 ### Deferred
 
-- Process executor tier (crash isolation), §18.
-- PostgreSQL storage backend (§18.4): the distributed lease protocol is
-  backend-agnostic and the SQLite backend already implements the persistent
-  lease table, so a Postgres backend is a mechanical translation behind a
-  feature flag — deferred until a database is available to test against rather
-  than shipping unverified DB code.
+- Nothing outstanding from the v0.1→v1.0 plan. The two items deferred through
+  v1.0 — the process executor tier and the PostgreSQL backend — both shipped in
+  1.1.0 (see above). Post-1.0 extension work (a learned text embedding layer,
+  multi-fidelity BOHB, additional accelerator backends) is tracked as new work,
+  not carried-over debt.

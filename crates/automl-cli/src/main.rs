@@ -16,8 +16,8 @@ use automl_core::param::ParamSet;
 use automl_core::sqlite::SqliteStorage;
 use automl_core::storage::Storage;
 use automl_core::trial::StudyId;
-use std::sync::Arc;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -81,12 +81,18 @@ fn cmd_worker(args: &[String]) -> Result<(), String> {
     let objective = |p: &ParamSet, _s: &mut dyn ReportSink| {
         let x = p.float("x")?;
         let y = p.float("y")?;
-        Ok(NamedMetrics::single("loss", (x - 2.0).powi(2) + (y + 1.0).powi(2)))
+        Ok(NamedMetrics::single(
+            "loss",
+            (x - 2.0).powi(2) + (y + 1.0).powi(2),
+        ))
     };
 
     let mut ran = 0usize;
     loop {
-        match worker.poll(&storage, study, &objective).map_err(|e| e.to_string())? {
+        match worker
+            .poll(&storage, study, &objective)
+            .map_err(|e| e.to_string())?
+        {
             Poll::Idle => break,
             Poll::Ran(_) => {
                 ran += 1;

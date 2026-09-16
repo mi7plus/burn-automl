@@ -109,6 +109,8 @@ pub mod prelude {
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pipeline::{Component, PipelinePlan, PipelineSpace, Stage, StageChoice};
+    #[cfg(feature = "postgres")]
+    pub use crate::postgres::PostgresStorage;
     pub use crate::process::{ProcessPool, ProcessReport};
     pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
@@ -119,8 +121,6 @@ pub mod prelude {
     pub use crate::space::{Condition, SearchSpace};
     #[cfg(feature = "sqlite")]
     pub use crate::sqlite::SqliteStorage;
-    #[cfg(feature = "postgres")]
-    pub use crate::postgres::PostgresStorage;
     pub use crate::storage::{InMemoryStorage, Storage, StudyMeta};
     pub use crate::study::{Study, StudyBuilder};
     pub use crate::tpe::TpeSampler;

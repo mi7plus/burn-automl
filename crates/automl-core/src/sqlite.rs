@@ -1,7 +1,7 @@
 //! SQLite storage backend with versioned migrations and study resume
 //! (PRD §19.1, §29 item 7).
 //!
-//! This is the first *persistent* [`Storage`] backend: it turns experiments
+//! This is the first *persistent* [`Storage`](crate::storage::Storage) backend: it turns experiments
 //! into durable studies that survive process exit. Per §19.1 the schema is
 //! versioned from this first persistent release, using a `_schema_version`
 //! table with monotonically increasing integer versions applied at open time;

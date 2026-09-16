@@ -7,7 +7,7 @@
 //! residual skip from the previous cell — becomes a concrete [`NasCnn`] Burn
 //! module. The search itself is ordinary optimization: the macro-architecture is
 //! encoded as a conditional search space and driven by the
-//! [`EvolutionarySampler`](automl_core::prelude::EvolutionarySampler), so
+//! [`EvolutionarySampler`], so
 //! architecture mutation *is* the sampler's mutation — evolutionary NAS with no
 //! bespoke controller.
 //!

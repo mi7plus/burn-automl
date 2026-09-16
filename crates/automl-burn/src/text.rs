@@ -4,7 +4,7 @@
 //! Documents are tokenized and each token is projected to a fixed-width vector by
 //! **feature hashing** (the hashing trick): a deterministic, vocabulary-free
 //! front-end that needs no learned embedding table. The resulting per-token
-//! sequence is exactly what the recurrent [`AutoSequence`](crate::AutoSequence)
+//! sequence is exactly what the recurrent [`AutoSequence`]
 //! classifier consumes — so text classification reuses the sequence model over a
 //! lexical front-end, the same way audio reuses it over a spectral one. Learned
 //! embeddings and attention encoders can layer on later (§12).

@@ -4,8 +4,8 @@
 //! preprocessing → model → postprocessing — not just a model's hyperparameters.
 //! The PRD is emphatic that this introduces **no separate pipeline DSL**:
 //! pipeline nodes are conditional subspaces composed via the same [`SearchSpace`]
-//! primitives used everywhere else, "so the sampler, pruner and storage layers
-//! [are] unaware that pipeline search is even happening" (§16).
+//! primitives used everywhere else, so the sampler, pruner and storage layers
+//! stay unaware that pipeline search is even happening (§16).
 //!
 //! A [`PipelineSpace`] is an ordered list of [`Stage`]s (e.g. `preprocess`,
 //! `model`, `postprocess`); each stage offers candidate [`Component`]s, and each
