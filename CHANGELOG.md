@@ -188,6 +188,11 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   Uses the CPU-only `ndarray` backend (no GPU/system deps). Includes a
   download-free synthetic-task test and an end-to-end `mnist_search` example.
 
-### Not yet implemented (planned for v0.1 completion)
+### Deferred
 
-- Process executor tier (crash isolation) and the distributed tier (§18).
+- Process executor tier (crash isolation), §18.
+- PostgreSQL storage backend (§18.4): the distributed lease protocol is
+  backend-agnostic and the SQLite backend already implements the persistent
+  lease table, so a Postgres backend is a mechanical translation behind a
+  feature flag — deferred until a database is available to test against rather
+  than shipping unverified DB code.
