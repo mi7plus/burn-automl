@@ -8,12 +8,15 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.98"
 license = "MIT"
-repository = "https://github.com/GeorgeOlteanu/burn-automl"
+repository = "https://github.com/mi7plus/burn-automl"
+homepage = "https://github.com/mi7plus/burn-automl"
 authors = ["George Olteanu"]
+keywords = ["automl", "hyperparameter", "optimization", "machine-learning", "burn"]
+categories = ["science", "algorithms", "mathematics"]
 
 [workspace.dependencies]
 rand = "0.8"
