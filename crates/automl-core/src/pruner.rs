@@ -46,6 +46,7 @@ pub struct MedianPruner {
     direction: Direction,
     warmup_steps: u64,
     min_trials: usize,
+    robust_window: usize,
 }
 
 impl MedianPruner {
@@ -56,6 +57,7 @@ impl MedianPruner {
             direction,
             warmup_steps: 1,
             min_trials: 1,
+            robust_window: 1,
         }
     }
 
@@ -68,6 +70,16 @@ impl MedianPruner {
     /// Set the minimum number of prior observations required to prune.
     pub fn with_min_trials(mut self, n: usize) -> Self {
         self.min_trials = n;
+        self
+    }
+
+    /// Enable the robust noisy-curve mode (PRD §18): compare the *median of the
+    /// trial's last `window` reported values* against peers, instead of its
+    /// single latest value. This smooths the short-term noise of GAN/RL-style
+    /// learning curves so a lucky or unlucky spike does not decide pruning. A
+    /// window of 1 (the default) is the ordinary latest-value behavior.
+    pub fn with_robust_window(mut self, window: usize) -> Self {
+        self.robust_window = window.max(1);
         self
     }
 
@@ -95,8 +107,25 @@ impl Pruner for MedianPruner {
         if step < self.warmup_steps {
             return false;
         }
-        let Some(current) = trial.last_value(&self.objective) else {
-            return false;
+        // In robust mode, judge the trial by the median of its recent curve
+        // rather than its single latest (possibly noisy) value.
+        let current = if self.robust_window > 1 {
+            let recent: Vec<f64> = trial
+                .intermediate
+                .iter()
+                .rev()
+                .filter_map(|r| r.metrics.get(&self.objective))
+                .take(self.robust_window)
+                .collect();
+            match Self::median(&recent) {
+                Some(m) => m,
+                None => return false,
+            }
+        } else {
+            let Some(current) = trial.last_value(&self.objective) else {
+                return false;
+            };
+            current
         };
         let peers = history.intermediate_values_at(step, &self.objective);
         if peers.len() < self.min_trials {
@@ -354,6 +383,42 @@ mod tests {
             step,
             metrics: NamedMetrics::single("loss", value),
         }]
+    }
+
+    #[test]
+    fn robust_window_smooths_a_noisy_spike() {
+        // Peers sit at loss 0.2; the current trial's curve is good (0.1) but its
+        // latest point spiked to 0.9 from noise.
+        let history = TrialHistory::new(vec![
+            completed_with_curve(0, &[(3, 0.2)]),
+            completed_with_curve(1, &[(3, 0.2)]),
+            completed_with_curve(2, &[(3, 0.2)]),
+        ]);
+        let curve = vec![
+            IntermediateReport {
+                step: 1,
+                metrics: NamedMetrics::single("loss", 0.10),
+            },
+            IntermediateReport {
+                step: 2,
+                metrics: NamedMetrics::single("loss", 0.12),
+            },
+            IntermediateReport {
+                step: 3,
+                metrics: NamedMetrics::single("loss", 0.90), // noisy spike
+            },
+        ];
+        let progress = TrialProgress {
+            id: TrialId(9),
+            intermediate: &curve,
+        };
+        // Latest-value mode prunes on the spike (0.9 worse than 0.2)...
+        let plain = MedianPruner::new("loss", Direction::Minimize);
+        assert!(plain.should_prune(&progress, &history));
+        // ...but a robust window of 3 compares median{0.10,0.12,0.90}=0.12 < 0.2,
+        // so the trial survives its unlucky spike.
+        let robust = MedianPruner::new("loss", Direction::Minimize).with_robust_window(3);
+        assert!(!robust.should_prune(&progress, &history));
     }
 
     #[test]

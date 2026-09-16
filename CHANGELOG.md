@@ -109,6 +109,32 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — RL & generative (v0.8)
+
+- Robust aggregation for noisy objectives (`automl-core::robust`, §13/§14, §27):
+  the `Aggregator` (`Mean`/`Median`/`TrimmedMean`) reduces replicate scores to an
+  outlier-resistant point estimate with a `spread` confidence proxy, and
+  `replicate` wraps any objective to evaluate it several times under derived seeds
+  and optimize the robust aggregate transparently — the sampler and pruner never
+  learn the objective was noisy. This is the §27 "replicates, confidence
+  estimates, robust aggregation mode" mitigation, locked in for RL/GAN/diffusion.
+- Median pruner robust noisy-curve mode (`MedianPruner::with_robust_window`, §18):
+  compares the median of a trial's last `k` reported values against peers instead
+  of its single latest value, so a lucky/unlucky spike on a noisy learning curve
+  does not decide pruning.
+- Reinforcement-learning search (`automl-tasks::rl`, §14/§20): a stochastic
+  `GridWorld` (slippery corridor) and a tabular `QLearner`, wrapped by `AutoRl`,
+  which searches learning rate / discount / exploration to maximize episode return
+  — evaluated with **replicated robust aggregation** of the noisy return. The
+  adapter owns the environment, rollouts and the episode/step budgets (§14).
+- Generative helpers (`automl-burn::generative`, §13/§20): `AutoAutoencoder`, a
+  one-call reconstruction-autoencoder search (latent size, width, depth, lr,
+  minimizing validation MSE) — the "autoencoders arrive earlier" deliverable;
+  `DiffusionSchedule` (linear/cosine noise schedules with derived `alpha_bar`s);
+  and `gan_space`, a coordinated generator/discriminator search space that is
+  dimension-compatible by construction. GAN/diffusion ship as *helpers*, their
+  noisy quality metrics intended for the robust-aggregation mode above.
+
 ### Added — NAS & video (v0.7)
 
 - Architecture-graph search primitives (`automl-core::nas`, §4.1/§21): a

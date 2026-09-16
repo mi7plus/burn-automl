@@ -11,6 +11,8 @@
 
 pub mod anomaly;
 pub mod clustering;
+pub mod rl;
 
 pub use anomaly::AutoAnomaly;
 pub use clustering::{kmeans, silhouette, AutoCluster, Clustering};
+pub use rl::{AutoRl, GridWorld, QLearner};
