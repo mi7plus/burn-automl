@@ -109,6 +109,34 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — Pipeline & multimodal (v0.9)
+
+- Pipeline-AutoML composition (`automl-core::pipeline`, §16): a `PipelineSpace`
+  of ordered `Stage`s, each offering `Component`s that carry their own conditional
+  hyperparameter subspace. `to_search_space` lowers a whole pipeline to a flat
+  conditional `SearchSpace` and `decode` lifts a sampled `ParamSet` back to a
+  `PipelinePlan` — **no separate pipeline DSL**, so the sampler, pruner and
+  storage layers stay unaware pipeline search is happening (§16), the same
+  encode/decode pattern as `nas`.
+- Executable tabular pipeline search (`automl-tasks::pipeline`, §16/§20):
+  `AutoPipeline` jointly searches a preprocessing transform (standardize /
+  normalize / none) and a classifier (nearest-centroid or k-NN with searched `k`)
+  over the core `PipelineSpace`, maximizing validation accuracy.
+- Multimodal fusion primitives (`automl-core::fusion`, §15): a `MultimodalSpace`
+  searches each modality's encoder and projection dimension plus a `Fusion`
+  strategy (`Concat`/`Mean`/`Sum`); `MultimodalPlan::validate` checks dimension
+  compatibility **before scheduling** so an incompatible configuration never
+  reaches the executor (§15), and `fuse` combines per-modality features.
+- Dashboard v1 (`automl-cli`, §25): per-trial **learning-curve overlays colored by
+  fate** (surviving vs pruned vs failed) and a **run-summary / utilization** panel
+  (state breakdown, wall-time totals), still a self-contained, read-only pure
+  function of `Storage` history.
+- Distributed hardening (`automl-core::distributed`, §18, §24): a
+  failure-injection suite — mid-trial worker crash with orphan recovery,
+  orphan-recovery under load losing no trials, and concurrent-claim mutual
+  exclusion — all asserting exactly-once completion, plus documented lease-TTL /
+  heartbeat tuning guidance.
+
 ### Added — RL & generative (v0.8)
 
 - Robust aggregation for noisy objectives (`automl-core::robust`, §13/§14, §27):
