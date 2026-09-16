@@ -109,6 +109,33 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
   running mean under K-fold), so the sampler and pruner stay oblivious to the
   scheme. Holdout keeps the per-epoch learning curve.
 
+### Added — NAS & video (v0.7)
+
+- Architecture-graph search primitives (`automl-core::nas`, §4.1/§21): a
+  framework-agnostic `MacroSpace` describes a variable-depth stack of cells, each
+  choosing one op from a shared, **reusable** `OpPalette` plus a channel width and
+  an optional residual skip. `MacroSpace::to_search_space` *encodes the
+  architecture as an ordinary conditional `SearchSpace`*, so every existing
+  sampler searches architectures with no NAS-specific machinery — and the
+  `EvolutionarySampler` in particular gives **evolutionary NAS** for free.
+  `MacroSpace::mutate` is the explicit graph operator (op swap, width change, skip
+  toggle, depth ±1), and `decode` turns a sampled `ParamSet` into a concrete
+  `Architecture`. The core knows only typed op *names*; adapters materialize them.
+- `AutoNas` (`automl-burn::nas`, §10/§20): the Burn materialization — a `NasCnn`
+  builds a decoded `Architecture` into same-resolution conv cells (with residual
+  projections for skips) plus adaptive pooling and a linear head, and `AutoNas`
+  runs a one-call image-classification NAS driven by the evolutionary sampler.
+- Video classification (`automl-burn::video`, §11/§20): a `frame_pool` spatial
+  front-end turns each clip into a sequence of pooled per-frame features, and
+  `AutoVideo` classifies clips with the recurrent `AutoSequence` model (the
+  CNN+RNN family from §11) — video reusing the sequence engine the way audio does.
+- Checkpoint promotion (`automl-core::checkpoint`, §10/§11 "checkpoint reuse",
+  §18): a `CheckpointPromoter` couples ASHA-style geometric rungs to the v0.5
+  artifact store — it records a trial's checkpoint at each rung, selects the top
+  `1/eta` promoted set, and `warm_start`s a promoted continuation from the best
+  predecessor's weights instead of retraining. Framework-agnostic: it moves opaque
+  checkpoint bytes through `Storage` artifacts and ranks by reported score.
+
 ### Added — Distributed alpha (v0.6)
 
 - Single-object detection (`automl-burn::detection`, §10/§20): a `Detector` CNN
