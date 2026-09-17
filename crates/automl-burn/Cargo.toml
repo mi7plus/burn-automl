@@ -12,11 +12,17 @@ categories.workspace = true
 authors.workspace = true
 
 [features]
-# GPU execution via Burn's WGPU backend (§18 device-aware execution). Off by
-# default so the standard build stays CPU-only and dependency-light; enabling it
-# swaps `TrainBackend` to autodiff-over-WGPU with no code changes. Needs a GPU
-# toolchain to run, so it is not exercised in CI.
+# GPU execution (§18 device-aware execution). Each swaps `TrainBackend` to an
+# autodiff-over-accelerator backend with no code changes, so every Auto* adapter
+# runs on the device. All are off by default so the standard build stays CPU-only
+# and dependency-light. Enable **at most one** — they define the same alias.
+# Each needs its platform's toolchain to run and is not exercised in CI:
+#   wgpu  — cross-platform (Vulkan/Metal/DX12), the portable default GPU path
+#   cuda  — NVIDIA GPUs (needs the CUDA toolkit)
+#   metal — Apple GPUs (needs macOS)
 wgpu = ["burn/wgpu"]
+cuda = ["burn/cuda"]
+metal = ["burn/metal"]
 
 [dependencies]
 automl-core = { workspace = true }
