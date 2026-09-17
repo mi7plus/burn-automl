@@ -59,7 +59,7 @@ run and trains on the CPU.
 | Crate | Role |
 |-------|------|
 | `automl-core` | Framework-agnostic engine: distributions, search spaces, samplers, pruners, storage, budgets, executors, studies. No `burn` or `automl-*` dependencies. |
-| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`, `AutoSeq2Seq`), text (`AutoText`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), neural architecture search (`AutoNas`), and generative (`AutoAutoencoder`). CPU (`ndarray`) backend by default; GPU via the `wgpu` feature. |
+| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`, `AutoSeq2Seq`), text (`AutoText`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), neural architecture search (`AutoNas`), and generative (`AutoAutoencoder`). CPU (`ndarray`) backend by default; GPU via the `wgpu`, `cuda`, or `metal` feature. |
 | `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette), `AutoAnomaly` (k-NN), `AutoRl` (tabular Q-learning with robust noisy-return aggregation), and `AutoPipeline` (preprocessing + model pipeline search). |
 | `automl-cli` | The `automl` binary: inspect studies (`automl list`) and render a read-only HTML dashboard (`automl dashboard`, with learning-curve overlays and utilization) from a SQLite store. |
 
@@ -74,8 +74,11 @@ the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
 - **Samplers** — `Random`, `Grid`, `TPE` (per-branch KDE + random fallback for
   under-observed conditional branches), `Evolutionary` (a real-coded genetic
   algorithm), and `QMC` (Halton), all correct over every conditional space.
-- **Pruning** — median (with warmup, min-observation, and a robust noisy-curve
-  mode), ASHA successive-halving, and multi-objective pruners.
+- **Pruning & multi-fidelity** — median (with warmup, min-observation, and a
+  robust noisy-curve mode), ASHA successive-halving, and multi-objective pruners,
+  plus `Hyperband`/BOHB, which allocate budget itself as a search dimension.
+- **Warm-starting** — `WarmStartSampler` seeds a new study with the best configs
+  of a prior one, transferring known-good regions.
 - **Storage** — thread-safe in-memory backend, a persistent `SqliteStorage`
   (feature `sqlite`), and a shared `PostgresStorage` (feature `postgres`), all with
   versioned migrations, study resume, and artifacts; reporting is idempotent by
