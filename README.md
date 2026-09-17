@@ -91,7 +91,8 @@ the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
 - **Studies** — the `Study` handle and a deterministic, replayable optimization
   loop with pluggable executors, samplers and pruners.
 - **Multi-objective** — `ParetoFront` with direction-aware dominance and
-  hypervolume, via `Study::pareto_front()`.
+  hypervolume via `Study::pareto_front()`, plus the `Nsga2Sampler` (non-dominated
+  sorting + crowding distance) to evolve the whole trade-off front.
 - **Robust aggregation** — replicated evaluation with median/trimmed-mean
   aggregates for noisy objectives (RL, GANs).
 - **NAS & pipelines** — architecture graphs (`MacroSpace`) and full pipelines

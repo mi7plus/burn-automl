@@ -10,10 +10,10 @@
 //! (§4.2) is that anything producing named metrics is optimizable. A training
 //! loop here:
 //!
-//! 1. reports validation accuracy to the [`ReportSink`] at each epoch, feeding
-//!    the pruner's learning-curve view, and
-//! 2. checks [`ReportSink::should_stop`] after each report, so a pruned trial
-//!    stops early instead of training to completion.
+//! 1. reports validation accuracy to the [`ReportSink`](automl_core::objective::ReportSink)
+//!    at each epoch, feeding the pruner's learning-curve view, and
+//! 2. checks [`ReportSink::should_stop`](automl_core::objective::ReportSink::should_stop)
+//!    after each report, so a pruned trial stops early instead of training to completion.
 //!
 //! The CPU-only `ndarray` backend is used so the build needs no GPU or system
 //! libraries; accelerator backends are a feature-flag change, not a code change.
