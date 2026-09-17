@@ -10,6 +10,18 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
 ## [Unreleased]
 
+### Added — examples for every use case
+
+- A runnable, self-contained example per use case (indexed in
+  [docs/EXAMPLES.md](docs/EXAMPLES.md)): engine capabilities (`multimodal`,
+  `robust_aggregation`, `distributed`), classical adapters (`clustering`,
+  `anomaly`, `reinforcement_learning`, `pipeline`), and the deep-learning
+  adapters (`tabular`, `time_series`, `sequence`, `transformer`, `seq2seq`,
+  `text`, `vision`, `segmentation`, `detection`, `audio`, `video`, `generative`),
+  alongside the existing `sphere`/`benchmarks`/`hyperband`/`nsga2`/`warm_start`
+  and the real-MNIST `mnist_search`/`mnist_nas`. The synthetic ones need no
+  download and run in seconds.
+
 ### Added — supply chain & project hygiene
 
 - **`cargo audit` CI job** scanning `Cargo.lock` against the RustSec advisory
