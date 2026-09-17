@@ -16,9 +16,15 @@ edition = "2021"
 rust-version = "1.98"
 license = "MIT"
 repository = "https://github.com/mi7plus/burn-automl"
+homepage = "https://github.com/mi7plus/burn-automl"
 authors = ["George Olteanu"]
+keywords = ["automl", "hyperparameter", "optimization", "postgres", "storage"]
+categories = ["science", "database"]
 
 [dependencies]
-automl-core = { path = "../crates/automl-core" }
+# The path lets local builds use the in-tree engine; the version is what
+# `cargo publish` records as the crates.io dependency (bumped in lockstep with
+# the workspace version).
+automl-core = { path = "../crates/automl-core", version = "1.4.0" }
 postgres = "0.19"
 serde_json = "1"
