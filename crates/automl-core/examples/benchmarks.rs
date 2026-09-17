@@ -1,5 +1,5 @@
 //! Standard continuous-optimization benchmark functions (PRD §24.1) and a
-//! Random vs TPE vs Evolutionary comparison over them.
+//! Random vs TPE vs multivariate-TPE vs Evolutionary comparison over them.
 //!
 //! Reports mean best objective and solve-rate per sampler over repeated seeds,
 //! the metrics the plan's benchmark suite calls for. Run with:
@@ -156,6 +156,7 @@ fn main() {
     enum Which {
         Random,
         Tpe,
+        TpeMv,
         Evo,
     }
     let bench_sampler = |b: &Benchmark, which: Which| -> (f64, f64) {
@@ -167,6 +168,12 @@ fn main() {
                 Which::Tpe => run(
                     b,
                     TpeSampler::new("loss", Direction::Minimize, s),
+                    s,
+                    n_trials,
+                ),
+                Which::TpeMv => run(
+                    b,
+                    TpeSampler::new("loss", Direction::Minimize, s).multivariate(true),
                     s,
                     n_trials,
                 ),
@@ -190,21 +197,24 @@ fn main() {
 
     println!("mean over {} seeds, {n_trials} trials each\n", seeds.len());
     println!(
-        "{:<16} {:>11} {:>7} {:>11} {:>7} {:>11} {:>7}",
-        "benchmark", "random", "solve%", "tpe", "solve%", "evolution", "solve%"
+        "{:<16} {:>10} {:>6} {:>10} {:>6} {:>10} {:>6} {:>10} {:>6}",
+        "benchmark", "random", "slv%", "tpe", "slv%", "tpe-mv", "slv%", "evolution", "slv%"
     );
-    println!("{}", "-".repeat(76));
+    println!("{}", "-".repeat(88));
     for b in &benches {
         let (rb, rs) = bench_sampler(b, Which::Random);
         let (tb, ts) = bench_sampler(b, Which::Tpe);
+        let (mb, ms) = bench_sampler(b, Which::TpeMv);
         let (eb, es) = bench_sampler(b, Which::Evo);
         println!(
-            "{:<16} {:>11.4} {:>6.0}% {:>11.4} {:>6.0}% {:>11.4} {:>6.0}%",
+            "{:<16} {:>10.4} {:>5.0}% {:>10.4} {:>5.0}% {:>10.4} {:>5.0}% {:>10.4} {:>5.0}%",
             b.name,
             rb,
             rs * 100.0,
             tb,
             ts * 100.0,
+            mb,
+            ms * 100.0,
             eb,
             es * 100.0
         );

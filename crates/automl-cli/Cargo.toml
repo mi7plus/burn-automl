@@ -16,5 +16,5 @@ name = "automl"
 path = "src/main.rs"
 
 [dependencies]
-automl-core = { path = "../automl-core", features = ["sqlite"] }
+automl-core = { workspace = true, features = ["sqlite"] }
 serde_json.workspace = true
