@@ -35,6 +35,7 @@ postgres = { version = "0.19", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
+proptest = "1"
 
 [[bench]]
 name = "samplers"

@@ -33,6 +33,7 @@ fn main() -> ExitCode {
 
 const USAGE: &str = "usage:
   automl list <study.db>
+  automl importance <study.db> [--study <id>]
   automl dashboard <study.db> [--study <id>] [-o <out.html>]
   automl worker <study.db> <study-id> <lease-ttl-ms> <worker-id>";
 
@@ -40,6 +41,7 @@ fn run(args: &[String]) -> Result<(), String> {
     let command = args.first().map(String::as_str).ok_or("no command given")?;
     match command {
         "list" => cmd_list(&args[1..]),
+        "importance" => cmd_importance(&args[1..]),
         "dashboard" => cmd_dashboard(&args[1..]),
         "worker" => cmd_worker(&args[1..]),
         "-h" | "--help" | "help" => {
@@ -124,6 +126,61 @@ fn cmd_list(args: &[String]) -> Result<(), String> {
         let meta = storage.load_meta(id).map_err(|e| e.to_string())?;
         let history = storage.load_history(id).map_err(|e| e.to_string())?;
         println!("[{}] {}", id.0, summarize(&meta, history.records()));
+    }
+    Ok(())
+}
+
+/// Parse `[--study <id>]` from a command's args, returning the chosen id or the
+/// most recent study.
+fn resolve_study(storage: &SqliteStorage, args: &[String]) -> Result<StudyId, String> {
+    let mut chosen: Option<u64> = None;
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--study" {
+            let v = args.get(i + 1).ok_or("--study needs a value")?;
+            chosen = Some(v.parse().map_err(|_| format!("bad study id `{v}`"))?);
+            i += 2;
+        } else {
+            return Err(format!("unexpected argument `{}`", args[i]));
+        }
+    }
+    let ids = storage.study_ids().map_err(|e| e.to_string())?;
+    match chosen {
+        Some(v) => Ok(StudyId(v)),
+        None => ids.last().copied().ok_or_else(|| "no studies".to_string()),
+    }
+}
+
+/// Print per-parameter hyperparameter importance for a study's first objective.
+fn cmd_importance(args: &[String]) -> Result<(), String> {
+    let db = args.first().ok_or("missing <study.db>")?;
+    let storage = open(db)?;
+    let id = resolve_study(&storage, args)?;
+    let meta = storage.load_meta(id).map_err(|e| e.to_string())?;
+    let (objective, _) = meta
+        .directions
+        .first()
+        .ok_or("study has no objective")?
+        .clone();
+    let history = storage.load_history(id).map_err(|e| e.to_string())?;
+    let mut ranked = automl_core::importance::importance(&history, &objective);
+    ranked.sort_by(|a, b| {
+        b.importance
+            .partial_cmp(&a.importance)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    println!(
+        "hyperparameter importance for study [{}] \"{}\" (objective: {objective})",
+        id.0, meta.name
+    );
+    if ranked.is_empty() {
+        println!("  (no completed trials with parameters)");
+    }
+    for pi in ranked {
+        // A simple text bar for at-a-glance ranking.
+        let bar = "#".repeat((pi.importance * 30.0).round() as usize);
+        println!("  {:<16} {:>6.3}  {bar}", pi.param, pi.importance);
     }
     Ok(())
 }

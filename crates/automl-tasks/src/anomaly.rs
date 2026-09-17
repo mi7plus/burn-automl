@@ -29,7 +29,7 @@ pub fn knn_anomaly_scores(reference: &[Vec<f32>], queries: &[Vec<f32>], k: usize
         .iter()
         .map(|q| {
             let mut ds: Vec<f32> = reference.iter().map(|r| dist(q, r)).collect();
-            ds.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            ds.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let k = k.clamp(1, ds.len().max(1));
             if ds.is_empty() {
                 0.0
@@ -46,7 +46,7 @@ fn quantile(values: &[f32], q: f32) -> f32 {
         return 0.0;
     }
     let mut v = values.to_vec();
-    v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let idx = ((q.clamp(0.0, 1.0)) * (v.len() - 1) as f32).round() as usize;
     v[idx.min(v.len() - 1)]
 }

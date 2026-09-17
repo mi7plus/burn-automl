@@ -8,6 +8,40 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
+## [1.4.0] — 2026-09-17
+
+Additive release: a second audit-pass — hardening, tooling, and dependency
+currency. No breaking changes.
+
+### Added
+
+- **Property-based sampler tests** (`proptest`): every sampler (Random / Grid /
+  TPE / Evolutionary / QMC) is checked to return a *valid assignment* over
+  arbitrary conditional search spaces, hardening the §5.1 correctness floor.
+- **`automl importance <db>`** CLI subcommand: prints per-parameter hyperparameter
+  importance with a text bar, reusing the tested importance analysis.
+- **`docs/ARCHITECTURE.md`**: contributor orientation — crate seams, the study
+  loop, determinism, and how to add a domain adapter.
+
+### Changed
+
+- **NaN-safe float sorts**: every `partial_cmp().unwrap()` in library code is now
+  `unwrap_or(Equal)`, so a NaN objective value (e.g. a diverged training run) can
+  never panic a sort.
+- **Dependencies**: `thiserror` 1 → 2, `rusqlite` 0.31 → 0.40 (no code changes).
+
+### Deliberately held
+
+- **`rand` stays at 0.8** (not 0.9/0.10). Burn 0.21 pulls rand 0.8 regardless, so
+  an upgrade would not shrink the dependency tree — and rand's post-0.8
+  range-sampling change would alter our seeded RNG output and break the
+  determinism guarantee. **Burn stays at 0.21** (the latest *stable*; 0.22 is a
+  pre-release). Both are documented decisions, revisited when Burn moves.
+
+### Breaking
+
+None.
+
 ## [1.3.0] — 2026-09-17
 
 Additive release: a repo-audit pass — one new capability, quality-of-life, and
