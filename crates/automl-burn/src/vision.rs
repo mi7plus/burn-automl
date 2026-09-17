@@ -6,6 +6,7 @@
 //! (flattened row-major); adaptive pooling makes the head independent of the
 //! input resolution.
 
+use crate::common::{image_tensor, split};
 use crate::sequence::label_tensor;
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
@@ -22,7 +23,7 @@ use burn::nn::{Dropout, DropoutConfig, Linear, LinearConfig, PaddingConfig2d, Re
 use burn::optim::{AdamConfig, GradientsParams, Optimizer};
 use burn::prelude::*;
 use burn::tensor::backend::AutodiffBackend;
-use burn::tensor::{ElementConversion, TensorData};
+use burn::tensor::ElementConversion;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use std::sync::Arc;
@@ -218,15 +219,6 @@ impl AutoVision {
 
 type ImgData = (Vec<Vec<f32>>, Vec<i64>, Vec<usize>, Vec<usize>);
 
-pub(crate) fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
-    let mut idx: Vec<usize> = (0..n).collect();
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    idx.shuffle(&mut rng);
-    let n_val = ((n as f64 * val_fraction).round() as usize).clamp(1, n.saturating_sub(1).max(1));
-    let val = idx.split_off(n - n_val.min(n));
-    (idx, val)
-}
-
 #[allow(clippy::too_many_arguments)]
 fn train_and_eval<B: AutodiffBackend>(
     cfg: &CnnConfig,
@@ -288,21 +280,6 @@ fn accuracy<B: Backend>(
     correct as f32 / val_idx.len() as f32 * 100.0
 }
 
-pub(crate) fn image_tensor<B: Backend>(
-    imgs: &[Vec<f32>],
-    idx: &[usize],
-    dims: (usize, usize, usize),
-    device: &B::Device,
-) -> Tensor<B, 4> {
-    let (c, h, w) = dims;
-    let n = idx.len();
-    let flat: Vec<f32> = idx.iter().flat_map(|&i| imgs[i].iter().copied()).collect();
-    Tensor::<B, 4>::from_data(
-        TensorData::new(flat, [n, c, h, w]).convert::<B::FloatElem>(),
-        device,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,6 +306,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_vision_classifies_quadrants() {
         let (imgs, labels) = synthetic(120, 1);
         let study = AutoVision::new(imgs, labels, 1, 8, 8)

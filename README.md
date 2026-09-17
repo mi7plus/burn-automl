@@ -91,7 +91,8 @@ the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
 - **Studies** — the `Study` handle and a deterministic, replayable optimization
   loop with pluggable executors, samplers and pruners.
 - **Multi-objective** — `ParetoFront` with direction-aware dominance and
-  hypervolume, via `Study::pareto_front()`.
+  hypervolume via `Study::pareto_front()`, plus the `Nsga2Sampler` (non-dominated
+  sorting + crowding distance) to evolve the whole trade-off front.
 - **Robust aggregation** — replicated evaluation with median/trimmed-mean
   aggregates for noisy objectives (RL, GANs).
 - **NAS & pipelines** — architecture graphs (`MacroSpace`) and full pipelines
@@ -110,10 +111,19 @@ compatibility.
 ## Development
 
 ```bash
-cargo test                       # unit + doc tests (in-memory)
-cargo test --features sqlite      # includes the persistent SQLite backend
+cargo test                              # fast: unit tests, model-training tests skipped
+cargo test --features sqlite             # includes the persistent SQLite backend
+cargo test --features slow-tests         # also runs the model-training tests (CI does)
 cargo clippy --all-targets
 cargo fmt --check
+```
+
+Model-training tests are gated behind the `slow-tests` feature so the default
+`cargo test` stays fast; CI runs `--features sqlite,slow-tests`.
+
+```bash
+cargo bench -p automl-core          # sampler throughput (criterion)
+cargo run  -p automl-core --example nsga2   # and hyperband, warm_start, benchmarks
 ```
 
 Clippy and rustfmt are release gates, not advisory; CI enforces them, an MSRV

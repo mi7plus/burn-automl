@@ -8,6 +8,36 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
+## [1.3.0] — 2026-09-17
+
+Additive release: a repo-audit pass — one new capability, quality-of-life, and
+refactoring. No breaking changes.
+
+### Added
+
+- **NSGA-II multi-objective sampler** (`automl-core::nsga2`): fills the gap where
+  multi-objective studies sampled effectively at random. Non-dominated sorting +
+  crowding distance + elite survival selection + crowded tournament + local
+  Gaussian mutation; beats random search on ZDT1. Fully worked `nsga2` example.
+- **Runnable examples** for the recent optimization features: `hyperband`
+  (multi-fidelity / BOHB), `warm_start` (transfer), `nsga2` (multi-objective).
+- **Serialization round-trip tests** pinning the persistence contract for
+  `ParamSet` / `SearchSpace` / `NamedMetrics` / `TrialRecord`.
+- **Criterion sampler benchmark** (`cargo bench -p automl-core`), CI compile-checked.
+- **CUDA/Metal parity** noted, and a **GPU (wgpu) compile-check CI job**.
+
+### Changed
+
+- Model-training tests are gated behind a `slow-tests` feature, so `cargo test`
+  runs in seconds (CI runs `--features sqlite,slow-tests`).
+- De-duplicated the `split`/`image_tensor` helpers into an `automl-burn::common`
+  module, and moved the MNIST machinery out of the crate root into `mnist` (public
+  API unchanged via re-exports). The crate root dropped from 433 to ~150 lines.
+
+### Breaking
+
+None.
+
 ## [1.2.0] — 2026-09-17
 
 Additive release (no breaking changes): post-1.0 optimization enhancements.

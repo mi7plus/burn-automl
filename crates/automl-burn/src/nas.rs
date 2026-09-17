@@ -14,8 +14,8 @@
 //! Every op preserves spatial size (`Same` padding) so arbitrary depths compose;
 //! an adaptive pool makes the classifier head independent of input resolution.
 
+use crate::common::{image_tensor, split};
 use crate::sequence::label_tensor;
-use crate::vision::{image_tensor, split};
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
@@ -387,6 +387,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_nas_searches_architectures() {
         // A shallow palette and few trials keep the conv search affordable on the
         // CPU ndarray backend while still exercising the evolutionary NAS path.

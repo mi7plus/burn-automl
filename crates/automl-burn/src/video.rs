@@ -218,6 +218,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_video_classifies_motion_direction() {
         let (clips, labels) = synthetic(120, 1);
         let study = AutoVideo::new(clips, labels, 1, 6, 6)

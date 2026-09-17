@@ -9,6 +9,17 @@
 //! Gated behind the `postgres` feature. The client is pure Rust (no C library),
 //! so it compiles anywhere; integration tests require a live server (set
 //! `TEST_POSTGRES_URL`) and are skipped otherwise.
+//!
+//! ## Concurrency
+//!
+//! The synchronous `postgres` client is not `Sync`, so it is wrapped in a
+//! `Mutex<Client>`: all database calls from one `PostgresStorage` handle
+//! serialize through that one connection. This is correct — the lease
+//! compare-and-swaps still race safely *across processes* on the server via
+//! `FOR UPDATE SKIP LOCKED` — but it caps *in-process* parallelism. For many
+//! concurrent workers in a single process, give each its own `PostgresStorage`
+//! (its own connection), or put a connection pool behind the `Storage` trait.
+//! Across machines, each process has its own handle, so this is a non-issue.
 
 use crate::error::{Error, Result};
 use crate::metrics::{Direction, NamedMetrics};

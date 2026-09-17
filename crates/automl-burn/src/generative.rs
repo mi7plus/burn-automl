@@ -12,7 +12,7 @@
 //! Their noisy quality metrics are meant to be optimized through the robust
 //! aggregation mode in [`automl_core::robust`].
 
-use crate::vision::split;
+use crate::common::split;
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
@@ -414,6 +414,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn autoencoder_reconstructs_low_rank_data() {
         let data = low_rank(160, 1);
         let study = AutoAutoencoder::new(data, 4)

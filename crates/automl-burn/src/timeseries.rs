@@ -436,6 +436,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_forecaster_learns_a_trend() {
         // A smooth seasonal-ish series: sine plus slow linear trend.
         let series: Vec<f32> = (0..160)
