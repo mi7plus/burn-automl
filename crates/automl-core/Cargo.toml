@@ -34,3 +34,8 @@ rusqlite = { workspace = true, optional = true }
 postgres = { version = "0.19", optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "samplers"
+harness = false

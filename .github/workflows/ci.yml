@@ -31,6 +31,8 @@ jobs:
         run: cargo clippy --all-targets --features sqlite -- -D warnings
       - name: Test (workspace, sqlite + slow model-training tests)
         run: cargo test --workspace --features sqlite,slow-tests
+      - name: Benchmarks compile
+        run: cargo bench -p automl-core --no-run
 
   msrv:
     name: MSRV (1.98.0) build

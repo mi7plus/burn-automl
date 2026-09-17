@@ -120,6 +120,11 @@ cargo fmt --check
 Model-training tests are gated behind the `slow-tests` feature so the default
 `cargo test` stays fast; CI runs `--features sqlite,slow-tests`.
 
+```bash
+cargo bench -p automl-core          # sampler throughput (criterion)
+cargo run  -p automl-core --example nsga2   # and hyperband, warm_start, benchmarks
+```
+
 Clippy and rustfmt are release gates, not advisory; CI enforces them, an MSRV
 (1.98) build, and a warning-free doc build on every push.
 
