@@ -2,12 +2,14 @@
 //!
 //! The distributed lease protocol (§18.2) is backend-agnostic, so a shared
 //! Postgres store is a mechanical translation of the SQLite backend behind the
-//! same [`Storage`] trait: the same versioned migrations, the same idempotent
-//! `(trial, step)` reporting, and the same claim / renew / recover compare-and-
-//! swaps — now over a server many machines can share, rather than a local file.
+//! same [`Storage`] trait: the same versioned
+//! migrations, the same idempotent `(trial, step)` reporting, and the same claim
+//! / renew / recover compare-and-swaps — now over a server many machines can
+//! share, rather than a local file.
 //!
-//! Gated behind the `postgres` feature. The client is pure Rust (no C library),
-//! so it compiles anywhere; integration tests require a live server (set
+//! This backend lives in its own crate (excluded from the main workspace) so the
+//! `postgres` client dependency does not burden the core build. The client is
+//! pure Rust (no C library); integration tests require a live server (set
 //! `TEST_POSTGRES_URL`) and are skipped otherwise.
 //!
 //! ## Concurrency
@@ -21,11 +23,15 @@
 //! (its own connection), or put a connection pool behind the `Storage` trait.
 //! Across machines, each process has its own handle, so this is a non-issue.
 
-use crate::error::{Error, Result};
-use crate::metrics::{Direction, NamedMetrics};
-use crate::param::ParamSet;
-use crate::storage::{Storage, StudyMeta};
-use crate::trial::{IntermediateReport, StudyId, TrialHistory, TrialId, TrialRecord, TrialState};
+#![forbid(unsafe_code)]
+
+use automl_core::error::{Error, Result};
+use automl_core::metrics::{Direction, NamedMetrics};
+use automl_core::param::ParamSet;
+use automl_core::storage::{Storage, StudyMeta};
+use automl_core::trial::{
+    IntermediateReport, StudyId, TrialHistory, TrialId, TrialRecord, TrialState,
+};
 use postgres::{Client, NoTls};
 use std::sync::Mutex;
 
@@ -167,11 +173,11 @@ impl PostgresStorage {
             .get::<_, Option<String>>(3)
             .map(|s| serde_json::from_str(&s))
             .transpose()?;
-        let env: crate::provenance::EnvSnapshot = match row.get::<_, Option<String>>(5) {
+        let env: automl_core::provenance::EnvSnapshot = match row.get::<_, Option<String>>(5) {
             Some(s) => serde_json::from_str(&s)?,
-            None => crate::provenance::EnvSnapshot::default(),
+            None => automl_core::provenance::EnvSnapshot::default(),
         };
-        let timing = crate::provenance::TrialTiming {
+        let timing = automl_core::provenance::TrialTiming {
             queued_at_ms: row.get::<_, Option<i64>>(6).unwrap_or(0) as u64,
             started_at_ms: row.get::<_, Option<i64>>(7).map(|v| v as u64),
             completed_at_ms: row.get::<_, Option<i64>>(8).map(|v| v as u64),
@@ -233,8 +239,8 @@ impl Storage for PostgresStorage {
         let mut client = self.client.lock().unwrap();
         let params_json = serde_json::to_string(&params)?;
         let state_json = serde_json::to_string(&TrialState::Waiting)?;
-        let env_json = serde_json::to_string(&crate::provenance::EnvSnapshot::capture())?;
-        let queued = crate::provenance::now_ms() as i64;
+        let env_json = serde_json::to_string(&automl_core::provenance::EnvSnapshot::capture())?;
+        let queued = automl_core::provenance::now_ms() as i64;
         let row = client
             .query_one(
                 "INSERT INTO trials (study_id, params, state, final_metrics, seed, env, queued_at) \
@@ -262,7 +268,7 @@ impl Storage for PostgresStorage {
                 "UPDATE trials SET state = $1, started_at = $2 WHERE id = $3",
                 &[
                     &serde_json::to_string(&TrialState::Running)?,
-                    &(crate::provenance::now_ms() as i64),
+                    &(automl_core::provenance::now_ms() as i64),
                     &(trial.0 as i64),
                 ],
             )
@@ -301,7 +307,7 @@ impl Storage for PostgresStorage {
                 &[
                     &state_json,
                     &metrics_json,
-                    &(crate::provenance::now_ms() as i64),
+                    &(automl_core::provenance::now_ms() as i64),
                     &(trial.0 as i64),
                 ],
             )
@@ -493,7 +499,7 @@ fn now_epoch_secs() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::param::ParamValue;
+    use automl_core::param::ParamValue;
 
     /// Run the full storage lifecycle and lease protocol against a live server.
     /// Requires `TEST_POSTGRES_URL` (e.g. `host=localhost user=postgres

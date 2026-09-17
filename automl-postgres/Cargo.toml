@@ -1,0 +1,24 @@
+# The PostgreSQL storage backend (PRD §18.4), extracted into its own crate and
+# **excluded** from the main workspace (see the root Cargo.toml's `[workspace]
+# exclude`). Keeping the `postgres` client dependency out of the main resolution
+# graph means the workspace builds even in vendored or restricted crate
+# registries that don't carry it. Integration tests need a live server (set
+# `TEST_POSTGRES_URL`) and are skipped otherwise.
+#
+# Build/test from the repo root:
+#   cargo build --manifest-path automl-postgres/Cargo.toml
+#   TEST_POSTGRES_URL=... cargo test --manifest-path automl-postgres/Cargo.toml
+[package]
+name = "automl-postgres"
+description = "PostgreSQL storage backend for burn-automl (implements automl-core's Storage trait)."
+version = "1.4.0"
+edition = "2021"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/mi7plus/burn-automl"
+authors = ["George Olteanu"]
+
+[dependencies]
+automl-core = { path = "../crates/automl-core" }
+postgres = "0.19"
+serde_json = "1"

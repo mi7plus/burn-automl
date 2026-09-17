@@ -19,10 +19,10 @@ features = ["sqlite"]
 # Off by default: the SQLite backend compiles a bundled C library, which plain
 # in-memory HPO users should not have to build (extraction trigger #1, §21.1).
 sqlite = ["dep:rusqlite"]
-# The PostgreSQL backend (§18.4) for a shared distributed store. Off by default;
-# integration tests need a live server (set TEST_POSTGRES_URL) and are skipped
-# otherwise.
-postgres = ["dep:postgres"]
+# The PostgreSQL backend (§18.4) lives in its own excluded crate,
+# `automl-postgres`, so its `postgres` client dependency does not burden this
+# crate's build (keeping the workspace buildable in vendored/restricted
+# registries). See automl-postgres/ at the repo root.
 
 [dependencies]
 rand.workspace = true
@@ -31,12 +31,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror.workspace = true
 rusqlite = { workspace = true, optional = true }
-postgres = { version = "0.19", optional = true }
 
-[dev-dependencies]
-criterion = "0.5"
-proptest = "1"
-
-[[bench]]
-name = "samplers"
-harness = false
+# The criterion benchmark and proptest property tests live in the excluded
+# `dev-suite` crate (see the root Cargo.toml), so their dev-dependencies do not
+# burden the main resolution graph.

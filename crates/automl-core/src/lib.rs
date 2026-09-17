@@ -87,9 +87,8 @@ pub mod warmstart;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 
-/// Shared PostgreSQL storage backend (enable the `postgres` feature).
-#[cfg(feature = "postgres")]
-pub mod postgres;
+// The PostgreSQL backend lives in the separate `automl-postgres` crate (excluded
+// from the workspace) so its client dependency does not burden the core build.
 
 pub use error::{Error, Result};
 
@@ -114,8 +113,6 @@ pub mod prelude {
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pipeline::{Component, PipelinePlan, PipelineSpace, Stage, StageChoice};
-    #[cfg(feature = "postgres")]
-    pub use crate::postgres::PostgresStorage;
     pub use crate::process::{ProcessPool, ProcessReport};
     pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};

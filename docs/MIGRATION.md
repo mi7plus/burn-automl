@@ -55,6 +55,10 @@ steps to move a database back a version.
 ## In-memory and other backends
 
 `InMemoryStorage` has no persistence and therefore no schema or migrations. The
-`PostgresStorage` backend (feature `postgres`, added in 1.1.0) implements the
-same versioned migrations (v1–v4) behind the same `Storage` trait, so the
-compatibility guarantees above apply to it identically (PRD §18.4).
+`PostgresStorage` backend (added in 1.1.0, and since moved to the separate
+`automl-postgres` crate) implements the same versioned migrations (v1–v4) behind
+the same `Storage` trait, so the compatibility guarantees above apply to it
+identically (PRD §18.4). It lives in its own crate — excluded from the main
+workspace — so its `postgres` client dependency does not burden the default
+build; use it with `automl-postgres = { path = "automl-postgres" }` (or its
+published version) rather than a feature flag on `automl-core`.

@@ -1,0 +1,25 @@
+# Dev-only crate: the criterion benchmark and the proptest property tests live
+# here, **excluded** from the main workspace (see the root Cargo.toml's
+# `[workspace] exclude`). Keeping their `criterion`/`proptest` dev-dependencies
+# out of the main resolution graph means the workspace builds even in vendored or
+# restricted crate registries that don't carry those crates.
+#
+# Run from the repo root:
+#   cargo test  --manifest-path dev-suite/Cargo.toml    # property tests
+#   cargo bench --manifest-path dev-suite/Cargo.toml    # sampler benchmark
+[package]
+name = "automl-dev-suite"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+automl-core = { path = "../crates/automl-core" }
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1"
+
+[[bench]]
+name = "samplers"
+harness = false
