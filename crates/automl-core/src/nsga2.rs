@@ -158,6 +158,7 @@ fn crowding_distances(pop: &[Vec<f64>], ranks: &[usize]) -> Vec<f64> {
             }
             continue;
         }
+        #[allow(clippy::needless_range_loop)] // m indexes several arrays per point
         for m in 0..n_obj {
             let mut order = front.clone();
             order.sort_by(|&a, &b| {
@@ -218,7 +219,7 @@ impl Sampler for Nsga2Sampler {
 
         // Binary tournament within the elite: lower rank wins; ties break toward
         // higher crowding.
-        let mut tournament = |rng: &mut ChaCha8Rng| -> usize {
+        let tournament = |rng: &mut ChaCha8Rng| -> usize {
             let a = elite[rng.gen_range(0..elite.len())];
             let b = elite[rng.gen_range(0..elite.len())];
             if ranks[a] < ranks[b] || (ranks[a] == ranks[b] && crowd[a] >= crowd[b]) {
