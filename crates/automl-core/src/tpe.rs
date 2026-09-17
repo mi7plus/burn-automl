@@ -187,7 +187,7 @@ impl Sampler for TpeSampler {
             return RandomSampler::sample_space(space, &mut rng);
         }
 
-        scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let n_below = self.n_below(scored.len());
         let good: Vec<&ParamSet> = scored[..n_below].iter().map(|(_, p)| *p).collect();
         let bad: Vec<&ParamSet> = scored[n_below..].iter().map(|(_, p)| *p).collect();
@@ -353,7 +353,11 @@ impl Parzen1D {
         // Assign each component a bandwidth from its neighbor spacing (sorted),
         // clipped to [prior_sigma/100, prior_sigma]; the prior keeps prior_sigma.
         let mut order: Vec<usize> = (0..n).collect();
-        order.sort_by(|&a, &b| mus[a].partial_cmp(&mus[b]).unwrap());
+        order.sort_by(|&a, &b| {
+            mus[a]
+                .partial_cmp(&mus[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let sigma_min = prior_sigma / 100.0;
         let mut sigmas = vec![prior_sigma; n];
         for rank in 0..n {

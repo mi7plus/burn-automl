@@ -234,7 +234,11 @@ impl AutoCluster {
             // Best of n_init restarts by inertia.
             let best = (0..n_init)
                 .map(|r| kmeans(&data, k, (k as u64) * 1000 + r as u64, 50))
-                .min_by(|a, b| a.inertia.partial_cmp(&b.inertia).unwrap())
+                .min_by(|a, b| {
+                    a.inertia
+                        .partial_cmp(&b.inertia)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .unwrap();
             let score = silhouette(&data, &best.assignments);
             Ok(NamedMetrics::single("silhouette", score as f64))

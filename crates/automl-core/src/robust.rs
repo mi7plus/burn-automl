@@ -40,7 +40,7 @@ impl Aggregator {
         if v.is_empty() {
             return None;
         }
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         Some(match *self {
             Aggregator::Mean => v.iter().sum::<f64>() / v.len() as f64,
             Aggregator::Median => median_sorted(&v),
@@ -67,7 +67,7 @@ impl Aggregator {
         if v.len() < 2 {
             return 0.0;
         }
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let n = v.len() as f64;
         match self {
             Aggregator::Mean => {
@@ -79,7 +79,7 @@ impl Aggregator {
                 // MAD scaled to a standard-deviation estimate, then standard error.
                 let med = median_sorted(&v);
                 let mut dev: Vec<f64> = v.iter().map(|x| (x - med).abs()).collect();
-                dev.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                dev.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let mad = median_sorted(&dev);
                 (1.4826 * mad) / n.sqrt()
             }

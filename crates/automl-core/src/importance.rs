@@ -143,7 +143,7 @@ fn quantile_bins(subset: &[(&ParamValue, f64)]) -> Vec<Vec<f64>> {
     if pairs.len() < 2 {
         return vec![pairs.into_iter().map(|(_, y)| y).collect()];
     }
-    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     // Number of distinct x values caps the useful bin count.
     let distinct = {

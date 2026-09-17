@@ -159,7 +159,7 @@ mod tests {
         let peak = frames[0]
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap()
             .0;
         assert!(

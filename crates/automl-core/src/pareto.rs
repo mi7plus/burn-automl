@@ -186,7 +186,7 @@ fn hypervolume_2d(points: &[Vec<f64>], reference: &[f64]) -> f64 {
         return 0.0;
     }
     // Sort by x ascending; for a non-dominated set y is then descending.
-    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut area = 0.0;
     let mut prev_y = reference[1];

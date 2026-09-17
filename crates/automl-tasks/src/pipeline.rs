@@ -259,7 +259,7 @@ fn knn_accuracy(
                 .zip(train_y)
                 .map(|(t, ty)| (dist2(x, t), *ty))
                 .collect();
-            dists.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            dists.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
             let mut votes: BTreeMap<i64, usize> = BTreeMap::new();
             for (_, lbl) in dists.iter().take(k) {
                 *votes.entry(*lbl).or_default() += 1;

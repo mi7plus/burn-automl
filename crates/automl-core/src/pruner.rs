@@ -89,7 +89,7 @@ impl MedianPruner {
         if v.is_empty() {
             return None;
         }
-        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mid = v.len() / 2;
         if v.len().is_multiple_of(2) {
             Some((v[mid - 1] + v[mid]) / 2.0)

@@ -177,7 +177,7 @@ mod tests {
             let hist = TrialHistory::new((0..i).map(dummy).collect());
             xs.push(s.suggest(&space, &hist).float("x").unwrap());
         }
-        xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        xs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mut max_gap = xs[0]; // gap from 0
         for w in xs.windows(2) {
             max_gap = max_gap.max(w[1] - w[0]);
