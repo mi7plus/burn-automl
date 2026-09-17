@@ -618,7 +618,10 @@ mod tests {
         // margin (not the exact figure) is the signal — Burn's ndarray backend
         // reduces floats with rayon, so the value varies slightly across
         // platforms, so keep the bound comfortably above the observed fit.
-        assert!(rmse < 0.7, "best rmse was {rmse}, expected a good linear fit");
+        assert!(
+            rmse < 0.7,
+            "best rmse was {rmse}, expected a good linear fit"
+        );
     }
 
     #[test]
