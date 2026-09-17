@@ -7,6 +7,7 @@
 //! single-object case; multi-object detection (anchors, NMS) builds on the same
 //! backbone in a later release.
 
+use crate::common::{image_tensor, split};
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
@@ -216,15 +217,6 @@ impl AutoDetection {
 
 type DetData = (Vec<Vec<f32>>, Vec<[f32; 4]>, Vec<usize>, Vec<usize>);
 
-fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
-    let mut idx: Vec<usize> = (0..n).collect();
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    idx.shuffle(&mut rng);
-    let n_val = ((n as f64 * val_fraction).round() as usize).clamp(1, n.saturating_sub(1).max(1));
-    let val = idx.split_off(n - n_val.min(n));
-    (idx, val)
-}
-
 #[allow(clippy::too_many_arguments)]
 fn train_and_eval<B: AutodiffBackend>(
     cfg: &DetectorConfig,
@@ -292,21 +284,6 @@ fn eval_iou<B: Backend>(
         sum += box_iou(&pb, &boxes[i]);
     }
     sum / val_idx.len() as f32 * 100.0
-}
-
-fn image_tensor<B: Backend>(
-    imgs: &[Vec<f32>],
-    idx: &[usize],
-    dims: (usize, usize, usize),
-    device: &B::Device,
-) -> Tensor<B, 4> {
-    let (c, h, w) = dims;
-    let n = idx.len();
-    let flat: Vec<f32> = idx.iter().flat_map(|&i| imgs[i].iter().copied()).collect();
-    Tensor::<B, 4>::from_data(
-        TensorData::new(flat, [n, c, h, w]).convert::<B::FloatElem>(),
-        device,
-    )
 }
 
 fn box_tensor<B: Backend>(boxes: &[[f32; 4]], idx: &[usize], device: &B::Device) -> Tensor<B, 2> {

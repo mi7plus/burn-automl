@@ -14,8 +14,8 @@
 //! Every op preserves spatial size (`Same` padding) so arbitrary depths compose;
 //! an adaptive pool makes the classifier head independent of input resolution.
 
+use crate::common::{image_tensor, split};
 use crate::sequence::label_tensor;
-use crate::vision::{image_tensor, split};
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};

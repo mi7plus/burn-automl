@@ -10,6 +10,7 @@
 //! dropout are searched. Token ids are one-hot encoded, so no embedding table is
 //! needed; a learned embedding is a natural later addition (§9).
 
+use crate::common::split;
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
@@ -325,15 +326,6 @@ fn token_accuracy<B: Backend>(
         }
     }
     correct as f32 / total.max(1) as f32 * 100.0
-}
-
-fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
-    let mut idx: Vec<usize> = (0..n).collect();
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    idx.shuffle(&mut rng);
-    let n_val = ((n as f64 * val_fraction).round() as usize).clamp(1, n.saturating_sub(1).max(1));
-    let val = idx.split_off(n - n_val.min(n));
-    (idx, val)
 }
 
 #[cfg(test)]

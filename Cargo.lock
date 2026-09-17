@@ -174,7 +174,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "automl-burn"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "automl-core",
  "burn",
@@ -184,7 +184,7 @@ dependencies = [
 
 [[package]]
 name = "automl-cli"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "automl-core",
  "serde_json",
@@ -192,7 +192,7 @@ dependencies = [
 
 [[package]]
 name = "automl-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "postgres",
  "rand 0.8.8",
@@ -205,7 +205,7 @@ dependencies = [
 
 [[package]]
 name = "automl-tasks"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "automl-core",
  "rand 0.8.8",
@@ -1615,6 +1615,7 @@ dependencies = [
  "cfg_aliases",
  "cubecl-common",
  "cubecl-core",
+ "cubecl-cpp",
  "cubecl-ir",
  "cubecl-runtime",
  "derive-new",

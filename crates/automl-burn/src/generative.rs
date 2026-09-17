@@ -12,7 +12,7 @@
 //! Their noisy quality metrics are meant to be optimized through the robust
 //! aggregation mode in [`automl_core::robust`].
 
-use crate::vision::split;
+use crate::common::split;
 use crate::TrainBackend;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};

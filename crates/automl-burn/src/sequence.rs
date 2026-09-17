@@ -8,6 +8,7 @@
 //! sequences. The last recurrent hidden state feeds a linear classification
 //! head.
 
+use crate::common::split;
 use automl_core::error::{Error, Result as CoreResult};
 use automl_core::metrics::{Direction, NamedMetrics};
 use automl_core::objective::ReportSink;
@@ -205,15 +206,6 @@ impl AutoSequence {
 }
 
 type SeqData = (Vec<Vec<Vec<f32>>>, Vec<i64>, Vec<usize>, Vec<usize>);
-
-fn split(n: usize, val_fraction: f64, seed: u64) -> (Vec<usize>, Vec<usize>) {
-    let mut idx: Vec<usize> = (0..n).collect();
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    idx.shuffle(&mut rng);
-    let n_val = ((n as f64 * val_fraction).round() as usize).clamp(1, n.saturating_sub(1).max(1));
-    let val = idx.split_off(n - n_val.min(n));
-    (idx, val)
-}
 
 fn train_and_eval<B: AutodiffBackend>(
     cfg: &RnnConfig,
