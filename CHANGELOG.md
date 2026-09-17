@@ -8,6 +8,18 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
+## [Unreleased]
+
+### Added — supply chain & project hygiene
+
+- **`cargo audit` CI job** scanning `Cargo.lock` against the RustSec advisory
+  database (informational; currently only two transitive *unmaintained* notices,
+  no vulnerabilities), plus **Dependabot** for cargo and GitHub Actions updates.
+- **`SECURITY.md`** (private vulnerability reporting) and **`CONTRIBUTING.md`**
+  (setup, gates, conventions, pointing at the architecture doc).
+- **`#![forbid(unsafe_code)]`** added to `automl-cli`, so all four crates now
+  forbid unsafe.
+
 ## [1.4.0] — 2026-09-17
 
 Additive release: a second audit-pass — hardening, tooling, and dependency

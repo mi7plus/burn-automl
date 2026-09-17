@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Rust dependencies. Grouped so a batch of minor/patch bumps arrives as one PR;
+  # note that `rand` and `burn` are held deliberately (see the root Cargo.toml),
+  # so Dependabot PRs for those are useful *signals* of when to revisit, not
+  # auto-merge candidates.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Keep the GitHub Actions used by CI current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
