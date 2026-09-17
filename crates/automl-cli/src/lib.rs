@@ -15,6 +15,8 @@
 //! would require lease columns in the record; the dashboard stays a pure function
 //! of `Storage` history, so it never grows its own consistency story.
 
+#![forbid(unsafe_code)]
+
 use automl_core::metrics::Direction;
 use automl_core::storage::StudyMeta;
 use automl_core::trial::{TrialRecord, TrialState};

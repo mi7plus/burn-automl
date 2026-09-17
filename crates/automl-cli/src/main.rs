@@ -8,6 +8,8 @@
 //! Both commands are read-only against a SQLite study store (§25): they never
 //! write to the database, only read it.
 
+#![forbid(unsafe_code)]
+
 use automl_cli::{render_dashboard, summarize};
 use automl_core::distributed::{Poll, Worker};
 use automl_core::metrics::NamedMetrics;

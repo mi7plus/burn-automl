@@ -69,3 +69,19 @@ jobs:
       # and are left to their platforms.
       - name: Check automl-burn with the wgpu backend
         run: cargo check -p automl-burn --features wgpu
+
+  audit:
+    name: cargo audit (advisory scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      # Scans Cargo.lock against the RustSec advisory DB for vulnerable or yanked
+      # dependencies. Informational (does not gate merges), so a fresh advisory in
+      # a transitive dep surfaces without blocking unrelated work.
+      - name: Audit dependencies
+        run: cargo audit
+        continue-on-error: true
