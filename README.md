@@ -40,7 +40,8 @@ println!("best loss = {:?}", best.final_value("loss"));
 # Ok::<(), automl_core::Error>(())
 ```
 
-Run the bundled examples:
+Run the bundled examples — there is one for every use case (see
+[docs/EXAMPLES.md](docs/EXAMPLES.md) for the full index):
 
 ```bash
 cargo run -p automl-core --example sphere
@@ -131,6 +132,7 @@ Clippy and rustfmt are release gates, not advisory; CI enforces them, an MSRV
 
 ## Documentation
 
+- [Examples index](docs/EXAMPLES.md) — a runnable example for every use case
 - [Architecture overview](docs/ARCHITECTURE.md) — crate seams, the study loop, how to add an adapter
 - [Stability & semver policy](docs/STABILITY.md) and the [migration guide](docs/MIGRATION.md)
 - [v1.0 definition-of-done map](docs/v1.0-checklist.md)
