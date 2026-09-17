@@ -79,6 +79,7 @@ pub mod storage;
 pub mod study;
 pub mod tpe;
 pub mod trial;
+pub mod warmstart;
 
 /// Persistent SQLite storage backend (enable the `sqlite` feature).
 #[cfg(feature = "sqlite")]
@@ -125,4 +126,5 @@ pub mod prelude {
     pub use crate::study::{Study, StudyBuilder};
     pub use crate::tpe::TpeSampler;
     pub use crate::trial::{StudyId, TrialHistory, TrialId, TrialRecord, TrialState};
+    pub use crate::warmstart::{best_configs, WarmStartSampler};
 }
