@@ -81,9 +81,9 @@ the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
 - **Warm-starting** — `WarmStartSampler` seeds a new study with the best configs
   of a prior one, transferring known-good regions.
 - **Storage** — thread-safe in-memory backend, a persistent `SqliteStorage`
-  (feature `sqlite`), and a shared `PostgresStorage` (feature `postgres`), all with
-  versioned migrations, study resume, and artifacts; reporting is idempotent by
-  `(trial, step)`.
+  (feature `sqlite`), and a shared `PostgresStorage` (the separate
+  `automl-postgres` crate), all with versioned migrations, study resume, and
+  artifacts; reporting is idempotent by `(trial, step)`.
 - **Budgets** — `Budget` as a trait: trials, wall time, epochs, steps, unbounded.
 - **Executors & distribution** — `SequentialExecutor`, `ThreadExecutor`, a
   crash-isolated `ProcessPool` (subprocess workers), and a lease-backed

@@ -1,5 +1,8 @@
 # Rust build artifacts
 /target
+# The excluded crates each build into their own target dir.
+dev-suite/target/
+automl-postgres/target/
 
 # Local tooling / machine-specific config
 .forge/

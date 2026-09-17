@@ -35,7 +35,7 @@ Extension points are **traits**, so each is replaceable without touching the loo
 | `Sampler` | propose the next `ParamSet` from the space + history | Random, Grid, TPE (+ multivariate), Evolutionary, QMC, NSGA-II |
 | `Pruner` | early-stop a running trial by its curve | None, Median (+ robust window), ASHA, MultiObjective |
 | `Executor` | run a batch of trial jobs | Sequential, Thread; `ProcessPool` for crash isolation |
-| `Storage` | persist studies/trials/metrics/artifacts/leases | InMemory, SQLite, PostgreSQL |
+| `Storage` | persist studies/trials/metrics/artifacts/leases | InMemory, SQLite; PostgreSQL (separate `automl-postgres` crate) |
 | `Budget` | bound a study | Trial, WallTime, Epoch, Step, Unbounded |
 | `Objective` / `ReportSink` | the workload seam | user closures, `TaskAdapter`s |
 

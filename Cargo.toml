@@ -6,6 +6,11 @@ members = [
     "crates/automl-burn",
     "crates/automl-cli",
 ]
+# Excluded so their extra dependencies stay out of the main resolution graph,
+# keeping the workspace buildable in vendored or restricted crate registries:
+#   dev-suite       — the criterion benchmark and proptest property tests
+#   automl-postgres — the PostgreSQL storage backend (needs the `postgres` client)
+exclude = ["dev-suite", "automl-postgres"]
 
 [workspace.package]
 version = "1.4.0"

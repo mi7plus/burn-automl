@@ -10,6 +10,18 @@ This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
 ## [Unreleased]
 
+### Changed — leaner default build (vendor/offline friendly)
+
+- The PostgreSQL backend moved from `automl-core` (feature `postgres`) into a
+  new **`automl-postgres`** crate, **excluded** from the main workspace. Its
+  `postgres` client — and the criterion/proptest dev-dependencies, now in the
+  excluded **`dev-suite`** crate — are no longer part of the default resolution
+  graph, so `cargo build` (and vendored/offline registries that don't carry
+  those crates) works without them. The backend is unchanged; depend on
+  `automl-postgres` (path or version) instead of enabling a feature. Its
+  compile/lint stays in CI; its server-backed integration tests still run
+  against `TEST_POSTGRES_URL`.
+
 ### Added — examples for every use case
 
 - A runnable, self-contained example per use case (indexed in
