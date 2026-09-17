@@ -64,6 +64,7 @@ pub mod importance;
 pub mod metrics;
 pub mod multifidelity;
 pub mod nas;
+pub mod nsga2;
 pub mod objective;
 pub mod param;
 pub mod pareto;
@@ -108,6 +109,7 @@ pub mod prelude {
     pub use crate::metrics::{Direction, NamedMetrics, Objective as ObjectiveSpec};
     pub use crate::multifidelity::{Hyperband, HyperbandOutcome};
     pub use crate::nas::{Architecture, Layer, MacroSpace, OpPalette};
+    pub use crate::nsga2::Nsga2Sampler;
     pub use crate::objective::{Objective, ReportSink, TaskAdapter};
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
