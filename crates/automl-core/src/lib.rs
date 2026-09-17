@@ -67,6 +67,7 @@ pub mod objective;
 pub mod param;
 pub mod pareto;
 pub mod pipeline;
+pub mod process;
 pub mod provenance;
 pub mod pruner;
 pub mod qmc;
@@ -82,6 +83,10 @@ pub mod trial;
 /// Persistent SQLite storage backend (enable the `sqlite` feature).
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
+
+/// Shared PostgreSQL storage backend (enable the `postgres` feature).
+#[cfg(feature = "postgres")]
+pub mod postgres;
 
 pub use error::{Error, Result};
 
@@ -104,6 +109,9 @@ pub mod prelude {
     pub use crate::param::{ParamSet, ParamValue};
     pub use crate::pareto::{Member, ParetoFront};
     pub use crate::pipeline::{Component, PipelinePlan, PipelineSpace, Stage, StageChoice};
+    #[cfg(feature = "postgres")]
+    pub use crate::postgres::PostgresStorage;
+    pub use crate::process::{ProcessPool, ProcessReport};
     pub use crate::provenance::{EnvSnapshot, TrialTiming};
     pub use crate::pruner::{AshaPruner, MedianPruner, MultiObjectivePruner, NoPruner, Pruner};
     pub use crate::qmc::QmcSampler;

@@ -55,6 +55,6 @@ steps to move a database back a version.
 ## In-memory and other backends
 
 `InMemoryStorage` has no persistence and therefore no schema or migrations. The
-distributed lease protocol is backend-agnostic; a future PostgreSQL backend
-implements the same versioned-migration discipline behind the same `Storage`
-trait (PRD §18.4).
+`PostgresStorage` backend (feature `postgres`, added in 1.1.0) implements the
+same versioned migrations (v1–v4) behind the same `Storage` trait, so the
+compatibility guarantees above apply to it identically (PRD §18.4).

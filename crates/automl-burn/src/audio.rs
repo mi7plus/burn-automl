@@ -2,7 +2,7 @@
 //!
 //! Waveforms are turned into log-magnitude spectrogram frames (a windowed DFT
 //! with a Hann window), which are exactly the fixed-length multivariate
-//! sequences the recurrent [`AutoSequence`](crate::AutoSequence) classifier
+//! sequences the recurrent [`AutoSequence`] classifier
 //! consumes — so audio classification reuses the sequence model over a
 //! spectral front-end. The window/hop/bin front-end parameters are configurable
 //! here; searching them jointly with the model can layer on later (§12).

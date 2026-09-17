@@ -1,11 +1,14 @@
 [package]
 name = "automl-tasks"
-description = "Framework-agnostic task adapters for burn-automl (classical, no deep-learning dependency): clustering and anomaly detection."
+description = "Framework-agnostic task adapters for burn-automl (classical, no deep-learning dependency): clustering, anomaly detection, reinforcement learning, and pipeline search."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 authors.workspace = true
 
 [dependencies]

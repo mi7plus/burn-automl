@@ -59,7 +59,7 @@ run and trains on the CPU.
 | Crate | Role |
 |-------|------|
 | `automl-core` | Framework-agnostic engine: distributions, search spaces, samplers, pruners, storage, budgets, executors, studies. No `burn` or `automl-*` dependencies. |
-| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), neural architecture search (`AutoNas`), and generative (`AutoAutoencoder`). CPU (`ndarray`) backend by default. |
+| `automl-burn` | Burn deep-learning execution adapter with high-level `Auto*` APIs: tabular (`AutoClassifier`/`AutoRegressor`), time series (`AutoForecaster`), sequences (`AutoSequence`, `AutoTransformer`, `AutoSeq2Seq`), text (`AutoText`), vision (`AutoVision`, `AutoSegmentation`, `AutoDetection`), audio (`AutoAudio`), video (`AutoVideo`), neural architecture search (`AutoNas`), and generative (`AutoAutoencoder`). CPU (`ndarray`) backend by default; GPU via the `wgpu` feature. |
 | `automl-tasks` | Framework-agnostic classical task adapters (no Burn): `AutoCluster` (K-means + silhouette), `AutoAnomaly` (k-NN), `AutoRl` (tabular Q-learning with robust noisy-return aggregation), and `AutoPipeline` (preprocessing + model pipeline search). |
 | `automl-cli` | The `automl` binary: inspect studies (`automl list`) and render a read-only HTML dashboard (`automl dashboard`, with learning-curve overlays and utilization) from a SQLite store. |
 
@@ -76,13 +76,15 @@ the plan (§21); the core stays free of `burn` and any `automl-*` dependency.
   algorithm), and `QMC` (Halton), all correct over every conditional space.
 - **Pruning** — median (with warmup, min-observation, and a robust noisy-curve
   mode), ASHA successive-halving, and multi-objective pruners.
-- **Storage** — thread-safe in-memory backend plus a persistent `SqliteStorage`
-  (feature `sqlite`) with versioned migrations, study resume, and artifacts;
-  reporting is idempotent by `(trial, step)`.
+- **Storage** — thread-safe in-memory backend, a persistent `SqliteStorage`
+  (feature `sqlite`), and a shared `PostgresStorage` (feature `postgres`), all with
+  versioned migrations, study resume, and artifacts; reporting is idempotent by
+  `(trial, step)`.
 - **Budgets** — `Budget` as a trait: trials, wall time, epochs, steps, unbounded.
-- **Executors & distribution** — `SequentialExecutor`, `ThreadExecutor`, and a
-  lease-backed distributed worker protocol (claim / heartbeat / orphan recovery)
-  with exactly-once completion.
+- **Executors & distribution** — `SequentialExecutor`, `ThreadExecutor`, a
+  crash-isolated `ProcessPool` (subprocess workers), and a lease-backed
+  distributed worker protocol (claim / heartbeat / orphan recovery) with
+  exactly-once completion.
 - **Studies** — the `Study` handle and a deterministic, replayable optimization
   loop with pluggable executors, samplers and pruners.
 - **Multi-objective** — `ParetoFront` with direction-aware dominance and

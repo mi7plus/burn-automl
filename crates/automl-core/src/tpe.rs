@@ -50,6 +50,7 @@ pub struct TpeSampler {
     n_candidates: usize,
     gamma: f64,
     min_branch_obs: usize,
+    multivariate: bool,
 }
 
 impl TpeSampler {
@@ -63,7 +64,21 @@ impl TpeSampler {
             n_candidates: 24,
             gamma: 0.25,
             min_branch_obs: 10,
+            multivariate: false,
         }
+    }
+
+    /// Enable multivariate (joint) candidate sampling. Standard TPE samples each
+    /// dimension from its own 1-D density independently, which cannot follow
+    /// correlations between parameters — the classic failure on coupled objectives
+    /// like Rosenbrock. In multivariate mode each candidate is anchored on a
+    /// randomly chosen *good* trial and all its dimensions are perturbed together,
+    /// so proposals stay near jointly-good regions and inter-parameter structure is
+    /// preserved. Candidates are still ranked by the product of per-dimension
+    /// `l(x)/g(x)`.
+    pub fn multivariate(mut self, on: bool) -> Self {
+        self.multivariate = on;
+        self
     }
 
     /// Number of random trials before TPE modeling begins (default 10).
@@ -177,6 +192,12 @@ impl Sampler for TpeSampler {
         let good: Vec<&ParamSet> = scored[..n_below].iter().map(|(_, p)| *p).collect();
         let bad: Vec<&ParamSet> = scored[n_below..].iter().map(|(_, p)| *p).collect();
 
+        // Multivariate mode: draw joint candidates anchored on good trials so
+        // inter-parameter correlations survive (§ Rosenbrock coupling).
+        if self.multivariate && good.len() >= self.min_branch_obs {
+            return self.suggest_joint(space, &good, &bad, &mut rng);
+        }
+
         let mut params = ParamSet::new();
         for def in space.params() {
             if !SearchSpace::is_active(def, &params) {
@@ -202,6 +223,109 @@ impl Sampler for TpeSampler {
     fn name(&self) -> &'static str {
         "tpe"
     }
+}
+
+impl TpeSampler {
+    /// Generate `n_candidates` full parameter sets, each anchored on a random good
+    /// trial with all dimensions perturbed jointly, and return the one maximizing
+    /// the summed per-dimension `log l(x) - log g(x)`.
+    fn suggest_joint<R: Rng + ?Sized>(
+        &self,
+        space: &SearchSpace,
+        good: &[&ParamSet],
+        bad: &[&ParamSet],
+        rng: &mut R,
+    ) -> ParamSet {
+        let n = good.len() as f64;
+        // Silverman-style bandwidth as a fraction of each axis range, shrinking
+        // as evidence grows.
+        let bw_frac = (0.5 * n.powf(-0.2)).clamp(0.02, 0.5);
+
+        let mut best: Option<ParamSet> = None;
+        let mut best_score = f64::NEG_INFINITY;
+
+        for _ in 0..self.n_candidates {
+            let anchor = good[rng.gen_range(0..good.len())];
+            let mut cand = ParamSet::new();
+            let mut score = 0.0;
+            for def in space.params() {
+                if !SearchSpace::is_active(def, &cand) {
+                    continue;
+                }
+                let good_vals: Vec<&ParamValue> =
+                    good.iter().filter_map(|p| p.get(&def.name)).collect();
+                if good_vals.len() < self.min_branch_obs {
+                    cand.insert(def.name.clone(), def.distribution.sample(rng));
+                    continue;
+                }
+                let bad_vals: Vec<&ParamValue> =
+                    bad.iter().filter_map(|p| p.get(&def.name)).collect();
+
+                let value = match &def.distribution {
+                    Distribution::Float { .. } | Distribution::Int { .. } => {
+                        let (lo, hi) = axis_bounds(&def.distribution);
+                        let g_obs: Vec<f64> = good_vals
+                            .iter()
+                            .map(|v| to_axis(&def.distribution, v))
+                            .collect();
+                        let b_obs: Vec<f64> = bad_vals
+                            .iter()
+                            .map(|v| to_axis(&def.distribution, v))
+                            .collect();
+                        let l = Parzen1D::new(&g_obs, lo, hi);
+                        let g = Parzen1D::new(&b_obs, lo, hi);
+                        let anchor_x = anchor
+                            .get(&def.name)
+                            .map(|v| to_axis(&def.distribution, v))
+                            .unwrap_or((lo + hi) / 2.0);
+                        let bw = (hi - lo) * bw_frac;
+                        let x = (anchor_x + standard_normal(rng) * bw).clamp(lo, hi);
+                        score += l.log_pdf(x) - g.log_pdf(x);
+                        from_axis(&def.distribution, x)
+                    }
+                    Distribution::Categorical { choices } => {
+                        // Keep the anchor's category (preserving joint structure),
+                        // scored by its l/g ratio.
+                        let l =
+                            cat_probs(&good_vals, choices, |c, v| c.iter().position(|x| x == v));
+                        let g = cat_probs(&bad_vals, choices, |c, v| c.iter().position(|x| x == v));
+                        let idx = anchor
+                            .get(&def.name)
+                            .and_then(|v| match v {
+                                ParamValue::Categorical(s) => choices.iter().position(|c| c == s),
+                                _ => None,
+                            })
+                            .unwrap_or_else(|| argmax_ratio(&l, &g));
+                        score += l[idx].max(1e-12).ln() - g[idx].max(1e-12).ln();
+                        ParamValue::Categorical(choices[idx].clone())
+                    }
+                    Distribution::Bool => {
+                        let l = bool_probs(&good_vals);
+                        let g = bool_probs(&bad_vals);
+                        let idx = match anchor.get(&def.name) {
+                            Some(ParamValue::Bool(b)) => *b as usize,
+                            _ => argmax_ratio(&l, &g),
+                        };
+                        score += l[idx].max(1e-12).ln() - g[idx].max(1e-12).ln();
+                        ParamValue::Bool(idx == 1)
+                    }
+                };
+                cand.insert(def.name.clone(), value);
+            }
+            if score > best_score {
+                best_score = score;
+                best = Some(cand);
+            }
+        }
+        best.unwrap_or_else(|| RandomSampler::sample_space(space, rng))
+    }
+}
+
+/// A standard-normal sample via Box–Muller (no extra dependency).
+fn standard_normal<R: Rng + ?Sized>(rng: &mut R) -> f64 {
+    let u1: f64 = rng.gen::<f64>().max(1e-12);
+    let u2: f64 = rng.gen::<f64>();
+    (-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos()
 }
 
 // ----- 1-D Parzen (Gaussian-mixture) density over a bounded continuous axis ---
@@ -586,6 +710,53 @@ mod tests {
             best.final_value("loss").unwrap() < 0.5,
             "best loss {:?} — did not find the conditional optimum",
             best.final_value("loss")
+        );
+    }
+
+    /// Rosenbrock's curved valley couples x and y, the classic case where
+    /// independent-per-dimension TPE stalls. Multivariate (joint, anchored)
+    /// sampling follows the valley and reaches a lower best, averaged over seeds.
+    #[test]
+    fn multivariate_beats_independent_on_rosenbrock() {
+        use crate::study::Study;
+
+        fn best_loss(multivariate: bool, seed: u64) -> f64 {
+            let space = SearchSpace::new()
+                .add("x", Distribution::float(-2.0, 2.0))
+                .add("y", Distribution::float(-2.0, 2.0));
+            let sampler =
+                TpeSampler::new("loss", Direction::Minimize, seed).multivariate(multivariate);
+            let mut study = Study::builder(space)
+                .minimize("loss")
+                .sampler(sampler)
+                .seed(seed)
+                .build()
+                .unwrap();
+            study
+                .optimize_n(
+                    &|p: &ParamSet, _s: &mut dyn crate::objective::ReportSink| {
+                        let (x, y) = (p.float("x")?, p.float("y")?);
+                        let loss = (1.0 - x).powi(2) + 100.0 * (y - x * x).powi(2);
+                        Ok(NamedMetrics::single("loss", loss))
+                    },
+                    90,
+                )
+                .unwrap();
+            study
+                .best_trial()
+                .unwrap()
+                .unwrap()
+                .final_value("loss")
+                .unwrap()
+        }
+
+        let seeds = [1u64, 2, 3, 4];
+        let mv: f64 = seeds.iter().map(|&s| best_loss(true, s)).sum::<f64>() / seeds.len() as f64;
+        let indep: f64 =
+            seeds.iter().map(|&s| best_loss(false, s)).sum::<f64>() / seeds.len() as f64;
+        assert!(
+            mv < indep,
+            "multivariate mean best {mv} should beat independent {indep}"
         );
     }
 }

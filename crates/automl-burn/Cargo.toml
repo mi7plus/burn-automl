@@ -6,7 +6,17 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 authors.workspace = true
+
+[features]
+# GPU execution via Burn's WGPU backend (§18 device-aware execution). Off by
+# default so the standard build stays CPU-only and dependency-light; enabling it
+# swaps `TrainBackend` to autodiff-over-WGPU with no code changes. Needs a GPU
+# toolchain to run, so it is not exercised in CI.
+wgpu = ["burn/wgpu"]
 
 [dependencies]
 automl-core = { path = "../automl-core" }

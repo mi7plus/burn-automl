@@ -27,8 +27,10 @@ pub mod evaluation;
 pub mod generative;
 pub mod nas;
 pub mod segmentation;
+pub mod seq2seq;
 pub mod sequence;
 pub mod tabular;
+pub mod text;
 pub mod timeseries;
 pub mod transformer;
 pub mod video;
@@ -39,8 +41,10 @@ pub use evaluation::Evaluation;
 pub use generative::{gan_space, AutoAutoencoder, Autoencoder, DiffusionSchedule};
 pub use nas::{AutoNas, NasCnn};
 pub use segmentation::AutoSegmentation;
+pub use seq2seq::{AutoSeq2Seq, Seq2Seq};
 pub use sequence::AutoSequence;
 pub use tabular::{AutoClassifier, AutoRegressor, AutoResult};
+pub use text::AutoText;
 pub use timeseries::{AutoForecaster, TimeSplit};
 pub use transformer::AutoTransformer;
 pub use video::AutoVideo;
@@ -64,8 +68,17 @@ use burn::tensor::ElementConversion;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
-/// The CPU training backend: autodiff over the pure-Rust ndarray backend.
+/// The training backend: autodiff over the pure-Rust ndarray backend by default,
+/// or over Burn's WGPU backend when the `wgpu` feature is enabled — a device
+/// change, not a code change (§18 device-aware execution). The whole crate is
+/// written against this alias, so every `Auto*` adapter runs on either backend.
+#[cfg(not(feature = "wgpu"))]
 pub type TrainBackend = burn::backend::Autodiff<burn::backend::NdArray>;
+
+/// The training backend on GPU: autodiff over Burn's WGPU backend (`wgpu`
+/// feature). Requires a GPU toolchain at runtime.
+#[cfg(feature = "wgpu")]
+pub type TrainBackend = burn::backend::Autodiff<burn::backend::Wgpu>;
 
 // ------------------------------- model ---------------------------------------
 
