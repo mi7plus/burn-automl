@@ -69,16 +69,26 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
 /// The training backend: autodiff over the pure-Rust ndarray backend by default,
-/// or over Burn's WGPU backend when the `wgpu` feature is enabled — a device
+/// or over an accelerator backend when a GPU feature is enabled — a device
 /// change, not a code change (§18 device-aware execution). The whole crate is
-/// written against this alias, so every `Auto*` adapter runs on either backend.
-#[cfg(not(feature = "wgpu"))]
+/// written against this alias, so every `Auto*` adapter runs on whichever backend
+/// is selected. Enable at most one GPU feature.
+#[cfg(not(any(feature = "wgpu", feature = "cuda", feature = "metal")))]
 pub type TrainBackend = burn::backend::Autodiff<burn::backend::NdArray>;
 
-/// The training backend on GPU: autodiff over Burn's WGPU backend (`wgpu`
-/// feature). Requires a GPU toolchain at runtime.
+/// Autodiff over Burn's cross-platform WGPU backend (`wgpu` feature).
 #[cfg(feature = "wgpu")]
 pub type TrainBackend = burn::backend::Autodiff<burn::backend::Wgpu>;
+
+/// Autodiff over Burn's CUDA backend for NVIDIA GPUs (`cuda` feature; needs the
+/// CUDA toolkit).
+#[cfg(feature = "cuda")]
+pub type TrainBackend = burn::backend::Autodiff<burn::backend::Cuda>;
+
+/// Autodiff over Burn's Metal backend for Apple GPUs (`metal` feature; needs
+/// macOS).
+#[cfg(feature = "metal")]
+pub type TrainBackend = burn::backend::Autodiff<burn::backend::Metal>;
 
 // ------------------------------- model ---------------------------------------
 

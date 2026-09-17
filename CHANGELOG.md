@@ -8,6 +8,36 @@ policy (§22), breaking changes to public traits (`Sampler`, `Pruner`,
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This line is pre-1.0: minor bumps (0.x → 0.(x+1)) may break public traits.
 
+## [1.2.0] — 2026-09-17
+
+Additive release (no breaking changes): post-1.0 optimization enhancements.
+
+### Added
+
+- **Multi-fidelity Hyperband / BOHB** (`automl-core::multifidelity`): `Hyperband`
+  allocates budget as a search dimension via successive-halving brackets —
+  evaluate many configs cheaply, keep the top `1/eta`, multiply resource by `eta`,
+  spend full-fidelity training only on survivors. The objective is fidelity-aware;
+  `optimize()` takes any `Sampler`, so pairing it with `TpeSampler` gives BOHB
+  (model-based multi-fidelity).
+- **Study warm-starting & transfer** (`automl-core::warmstart`): `WarmStartSampler`
+  wraps any sampler and replays a queue of seed configurations before delegating;
+  `best_configs` extracts the top-N configs from a prior study's history to
+  transfer. A study seeded with the optimum finds it on the first trial.
+- **Learned text embeddings** (`AutoText::learned_embedding`): trains a token
+  embedding table end-to-end (masked mean-pooling over the sequence) instead of
+  feature hashing, capturing token similarity a fixed front-end cannot.
+- **CUDA and Metal GPU backends** (`automl-burn` features `cuda`, `metal`): swap
+  `TrainBackend` to the corresponding autodiff backend, alongside the existing
+  `wgpu` feature. Off by default; enable at most one.
+- **Benchmark**: the sampler benchmark example and report now include multivariate
+  TPE, which is the strongest sampler overall (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)).
+
+### Breaking
+
+None. New modules, a new `AutoText` option, and new feature flags, all over
+unchanged public traits and the `Study` API.
+
 ## [1.1.0] — 2026-09-17
 
 Additive release (no breaking changes): completes the previously-deferred

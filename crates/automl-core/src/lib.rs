@@ -62,6 +62,7 @@ pub mod executor;
 pub mod fusion;
 pub mod importance;
 pub mod metrics;
+pub mod multifidelity;
 pub mod nas;
 pub mod objective;
 pub mod param;
@@ -79,6 +80,7 @@ pub mod storage;
 pub mod study;
 pub mod tpe;
 pub mod trial;
+pub mod warmstart;
 
 /// Persistent SQLite storage backend (enable the `sqlite` feature).
 #[cfg(feature = "sqlite")]
@@ -104,6 +106,7 @@ pub mod prelude {
     pub use crate::fusion::{fuse, Fusion, Modality, MultimodalPlan, MultimodalSpace};
     pub use crate::importance::{importance, ParamImportance};
     pub use crate::metrics::{Direction, NamedMetrics, Objective as ObjectiveSpec};
+    pub use crate::multifidelity::{Hyperband, HyperbandOutcome};
     pub use crate::nas::{Architecture, Layer, MacroSpace, OpPalette};
     pub use crate::objective::{Objective, ReportSink, TaskAdapter};
     pub use crate::param::{ParamSet, ParamValue};
@@ -125,4 +128,5 @@ pub mod prelude {
     pub use crate::study::{Study, StudyBuilder};
     pub use crate::tpe::TpeSampler;
     pub use crate::trial::{StudyId, TrialHistory, TrialId, TrialRecord, TrialState};
+    pub use crate::warmstart::{best_configs, WarmStartSampler};
 }
