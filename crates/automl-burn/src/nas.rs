@@ -387,6 +387,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_nas_searches_architectures() {
         // A shallow palette and few trials keep the conv search affordable on the
         // CPU ndarray backend while still exercising the evolutionary NAS path.

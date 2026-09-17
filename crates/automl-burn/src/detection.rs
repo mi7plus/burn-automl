@@ -336,6 +336,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_detection_localizes_a_square() {
         let (imgs, boxes) = synthetic(64, 1);
         let study = AutoDetection::new(imgs, boxes, 1, 8, 8)

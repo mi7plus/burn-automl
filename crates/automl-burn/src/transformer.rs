@@ -328,6 +328,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_transformer_classifies_positional_task() {
         let (seqs, labels) = synthetic(200, 2);
         let study = AutoTransformer::new(seqs, labels)

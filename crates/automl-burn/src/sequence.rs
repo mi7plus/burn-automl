@@ -320,6 +320,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_sequence_classifies_rising_vs_falling() {
         let (seqs, labels) = synthetic(200, 1);
         let study = AutoSequence::new(seqs, labels)

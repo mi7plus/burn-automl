@@ -260,6 +260,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn trains_on_synthetic_task_above_chance() {
         let config = TrainConfig {
             epochs: 10,

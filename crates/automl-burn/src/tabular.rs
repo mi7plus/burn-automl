@@ -577,6 +577,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_classifier_learns_separable_problem() {
         let (x, y) = classification_data(400, 1);
         let result = AutoClassifier::new()
@@ -595,6 +599,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_regressor_fits_linear_function() {
         // y = 2*x0 - x1 + 0.5
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(2);
@@ -631,6 +639,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_classifier_with_stratified_kfold() {
         let (x, y) = classification_data(300, 4);
         let result = AutoClassifier::new()

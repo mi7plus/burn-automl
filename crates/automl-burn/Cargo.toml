@@ -23,6 +23,10 @@ authors.workspace = true
 wgpu = ["burn/wgpu"]
 cuda = ["burn/cuda"]
 metal = ["burn/metal"]
+# The model-training tests are slow on CPU (each trains a small network). They
+# are ignored by default so `cargo test` is fast for contributors; enable this
+# to run them (CI does).
+slow-tests = []
 
 [dependencies]
 automl-core = { workspace = true }

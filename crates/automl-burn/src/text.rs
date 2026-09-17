@@ -423,6 +423,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_text_classifies_sentiment_like_topics() {
         let (texts, labels) = synthetic(140, 1);
         let study = AutoText::new(texts, labels)
@@ -439,6 +443,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_text_learned_embedding_classifies() {
         let (texts, labels) = synthetic(140, 2);
         let study = AutoText::new(texts, labels)

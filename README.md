@@ -110,11 +110,15 @@ compatibility.
 ## Development
 
 ```bash
-cargo test                       # unit + doc tests (in-memory)
-cargo test --features sqlite      # includes the persistent SQLite backend
+cargo test                              # fast: unit tests, model-training tests skipped
+cargo test --features sqlite             # includes the persistent SQLite backend
+cargo test --features slow-tests         # also runs the model-training tests (CI does)
 cargo clippy --all-targets
 cargo fmt --check
 ```
+
+Model-training tests are gated behind the `slow-tests` feature so the default
+`cargo test` stays fast; CI runs `--features sqlite,slow-tests`.
 
 Clippy and rustfmt are release gates, not advisory; CI enforces them, an MSRV
 (1.98) build, and a warning-free doc build on every push.

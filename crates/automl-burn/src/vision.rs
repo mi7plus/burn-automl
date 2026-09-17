@@ -306,6 +306,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_vision_classifies_quadrants() {
         let (imgs, labels) = synthetic(120, 1);
         let study = AutoVision::new(imgs, labels, 1, 8, 8)

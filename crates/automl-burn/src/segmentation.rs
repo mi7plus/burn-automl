@@ -345,6 +345,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_segmentation_learns_foreground() {
         let (imgs, masks) = synthetic(60, 1);
         let study = AutoSegmentation::new(imgs, masks, 1, 8, 8, 2)

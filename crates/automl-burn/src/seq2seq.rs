@@ -353,6 +353,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(feature = "slow-tests"),
+        ignore = "trains a model; run with --features slow-tests"
+    )]
     fn auto_seq2seq_learns_to_reverse() {
         // Symbols 1..=5 (vocab 6 incl. BOS), length-4 sequences.
         let (src, tgt) = reverse_task(320, 4, 5, 1);

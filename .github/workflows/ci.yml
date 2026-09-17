@@ -29,8 +29,8 @@ jobs:
         run: cargo fmt --all --check
       - name: Clippy (all targets, sqlite)
         run: cargo clippy --all-targets --features sqlite -- -D warnings
-      - name: Test (workspace, sqlite)
-        run: cargo test --workspace --features sqlite
+      - name: Test (workspace, sqlite + slow model-training tests)
+        run: cargo test --workspace --features sqlite,slow-tests
 
   msrv:
     name: MSRV (1.98.0) build
@@ -54,3 +54,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build docs (deny warnings)
         run: cargo doc --workspace --no-deps --features sqlite
+
+  gpu-backends:
+    name: GPU backend compile-check (wgpu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # wgpu compiles without a GPU present, so this guards the accelerator path
+      # against bit-rot even on a CPU runner. cuda/metal need their toolchains
+      # and are left to their platforms.
+      - name: Check automl-burn with the wgpu backend
+        run: cargo check -p automl-burn --features wgpu
