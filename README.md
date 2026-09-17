@@ -113,7 +113,15 @@ cargo clippy --all-targets
 cargo fmt --check
 ```
 
-Clippy and rustfmt are release gates, not advisory.
+Clippy and rustfmt are release gates, not advisory; CI enforces them, an MSRV
+(1.98) build, and a warning-free doc build on every push.
+
+## Documentation
+
+- [Stability & semver policy](docs/STABILITY.md) and the [migration guide](docs/MIGRATION.md)
+- [v1.0 definition-of-done map](docs/v1.0-checklist.md)
+- [Sampler benchmark report](docs/BENCHMARKS.md) — Random vs TPE vs multivariate TPE vs Evolutionary
+- [Publishing checklist](docs/PUBLISHING.md)
 
 ## License
 

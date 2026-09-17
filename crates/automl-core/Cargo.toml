@@ -11,6 +11,10 @@ keywords.workspace = true
 categories.workspace = true
 authors.workspace = true
 
+# Render the SQLite backend in the docs.rs build.
+[package.metadata.docs.rs]
+features = ["sqlite"]
+
 [features]
 # Off by default: the SQLite backend compiles a bundled C library, which plain
 # in-memory HPO users should not have to build (extraction trigger #1, §21.1).
