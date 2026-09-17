@@ -12,11 +12,11 @@ categories.workspace = true
 authors.workspace = true
 
 [dependencies]
-automl-core = { path = "../automl-core" }
+automl-core = { workspace = true }
 rand.workspace = true
 rand_chacha.workspace = true
 
 [dev-dependencies]
 # The end-to-end story test persists/resumes a study, so it needs the SQLite
 # backend regardless of the top-level feature flags.
-automl-core = { path = "../automl-core", features = ["sqlite"] }
+automl-core = { workspace = true, features = ["sqlite"] }
